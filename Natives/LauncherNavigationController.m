@@ -49,17 +49,26 @@ static void *ProgressObserverContext = &ProgressObserverContext;
     [self.versionTextField addTarget:self.versionTextField action:@selector(resignFirstResponder) forControlEvents:UIControlEventEditingDidEndOnExit];
     self.versionTextField.autoresizingMask = AUTORESIZE_MASKS;
     self.versionTextField.placeholder = @"Specify version...";
+    self.versionTextField.attributedPlaceholder = [[NSAttributedString alloc] initWithString:self.versionTextField.placeholder
+        attributes:@{NSForegroundColorAttributeName: AmethystThemeTextSecondaryColor()}];
     self.versionTextField.leftView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, 40, 40)];
     self.versionTextField.rightView = [[UIImageView alloc] initWithImage:[[UIImage imageNamed:@"SpinnerArrow"] _imageWithSize:CGSizeMake(30, 30)]];
     self.versionTextField.rightView.frame = CGRectMake(0, 0, self.versionTextField.frame.size.height * 0.9, self.versionTextField.frame.size.height * 0.9);
     self.versionTextField.leftViewMode = UITextFieldViewModeAlways;
     self.versionTextField.rightViewMode = UITextFieldViewModeAlways;
     self.versionTextField.textAlignment = NSTextAlignmentCenter;
+    self.versionTextField.backgroundColor = AmethystThemeSurfaceElevatedColor();
+    self.versionTextField.textColor = AmethystThemeTextPrimaryColor();
+    self.versionTextField.tintColor = AmethystThemeAccentColor();
+    self.versionTextField.layer.cornerRadius = 6.0;
+    self.versionTextField.clipsToBounds = YES;
 
     self.versionPickerView = [[PLPickerView alloc] init];
     self.versionPickerView.delegate = self;
     self.versionPickerView.dataSource = self;
     UIToolbar *versionPickToolbar = [[UIToolbar alloc] initWithFrame:CGRectMake(0.0, 0.0, self.view.frame.size.width, 44.0)];
+    versionPickToolbar.tintColor = AmethystThemeAccentColor();
+    versionPickToolbar.backgroundColor = AmethystThemeSurfaceColor();
 
     [self reloadProfileList];
 
@@ -70,19 +79,27 @@ static void *ProgressObserverContext = &ProgressObserverContext;
     self.versionTextField.inputView = self.versionPickerView;
 
     UIView *targetToolbar = self.toolbar;
+    targetToolbar.tintColor = AmethystThemeAccentColor();
+    targetToolbar.backgroundColor = AmethystThemeSurfaceColor();
     [targetToolbar addSubview:self.versionTextField];
 
     self.progressViewMain = [[UIProgressView alloc] initWithFrame:CGRectMake(0, 0, self.toolbar.frame.size.width, 4)];
     self.progressViewMain.autoresizingMask = AUTORESIZE_MASKS;
     self.progressViewMain.hidden = YES;
+    self.progressViewMain.trackTintColor = AmethystThemeSurfaceElevatedColor();
+    self.progressViewMain.tintColor = AmethystThemeAccentColor();
     [targetToolbar addSubview:self.progressViewMain];
 
     self.buttonInstall = [UIButton buttonWithType:UIButtonTypeSystem];
     setButtonPointerInteraction(self.buttonInstall);
     [self.buttonInstall setTitle:localize(@"Play", nil) forState:UIControlStateNormal];
     self.buttonInstall.autoresizingMask = AUTORESIZE_MASKS;
-    self.buttonInstall.backgroundColor = [UIColor colorWithRed:121/255.0 green:56/255.0 blue:162/255.0 alpha:1.0];
+    self.buttonInstall.backgroundColor = AmethystThemeAccentColor();
     self.buttonInstall.layer.cornerRadius = 5;
+    self.buttonInstall.layer.shadowColor = [UIColor blackColor].CGColor;
+    self.buttonInstall.layer.shadowOpacity = 0.2;
+    self.buttonInstall.layer.shadowRadius = 6;
+    self.buttonInstall.layer.shadowOffset = CGSizeMake(0, 3);
     self.buttonInstall.frame = CGRectMake(self.toolbar.frame.size.width * 0.8, 4, self.toolbar.frame.size.width * 0.2, self.toolbar.frame.size.height - 8);
     self.buttonInstall.tintColor = UIColor.whiteColor;
     self.buttonInstall.enabled = NO;
@@ -95,6 +112,7 @@ static void *ProgressObserverContext = &ProgressObserverContext;
     self.progressText.font = [self.progressText.font fontWithSize:16];
     self.progressText.textAlignment = NSTextAlignmentCenter;
     self.progressText.userInteractionEnabled = NO;
+    self.progressText.textColor = AmethystThemeTextSecondaryColor();
     [targetToolbar addSubview:self.progressText];
 
     [self fetchRemoteVersionList];
