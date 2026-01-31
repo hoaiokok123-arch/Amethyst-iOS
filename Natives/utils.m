@@ -12,6 +12,24 @@
 CFTypeRef SecTaskCopyValueForEntitlement(void* task, NSString* entitlement, CFErrorRef  _Nullable *error);
 void* SecTaskCreateFromSelf(CFAllocatorRef allocator);
 
+static inline UIColor *AmethystColorFromHex(uint32_t hex, CGFloat alpha) {
+    CGFloat r = ((hex >> 16) & 0xFF) / 255.0;
+    CGFloat g = ((hex >> 8) & 0xFF) / 255.0;
+    CGFloat b = (hex & 0xFF) / 255.0;
+    return [UIColor colorWithRed:r green:g blue:b alpha:alpha];
+}
+
+static UIColor *AmethystDynamicColor(uint32_t lightHex, uint32_t darkHex, CGFloat alpha) {
+    UIColor *light = AmethystColorFromHex(lightHex, alpha);
+    UIColor *dark = AmethystColorFromHex(darkHex, alpha);
+    if (@available(iOS 13.0, *)) {
+        return [UIColor colorWithDynamicProvider:^UIColor * _Nonnull(UITraitCollection * _Nonnull trait) {
+            return trait.userInterfaceStyle == UIUserInterfaceStyleDark ? dark : light;
+        }];
+    }
+    return light;
+}
+
 BOOL getEntitlementValue(NSString *key) {
     void *secTask = SecTaskCreateFromSelf(NULL);
     CFTypeRef value = SecTaskCopyValueForEntitlement(SecTaskCreateFromSelf(NULL), key, nil);
@@ -108,6 +126,106 @@ NSString* localize(NSString* key, NSString* comment) {
     }
 
     return value;
+}
+
+UIColor* AmethystThemeBackgroundColor(void) {
+    return AmethystDynamicColor(0xF4F7FB, 0x0F131A, 1.0);
+}
+
+UIColor* AmethystThemeSurfaceColor(void) {
+    return AmethystDynamicColor(0xFFFFFF, 0x151B24, 1.0);
+}
+
+UIColor* AmethystThemeSurfaceElevatedColor(void) {
+    return AmethystDynamicColor(0xE9EEF5, 0x1C2430, 1.0);
+}
+
+UIColor* AmethystThemeAccentColor(void) {
+    return AmethystDynamicColor(0x1F9E93, 0x39D3BB, 1.0);
+}
+
+UIColor* AmethystThemeAccentSoftColor(void) {
+    return AmethystDynamicColor(0xD6F3EE, 0x163333, 1.0);
+}
+
+UIColor* AmethystThemeTextPrimaryColor(void) {
+    return AmethystDynamicColor(0x1B1F24, 0xE6EDF3, 1.0);
+}
+
+UIColor* AmethystThemeTextSecondaryColor(void) {
+    return AmethystDynamicColor(0x546374, 0x9AA8B6, 1.0);
+}
+
+UIColor* AmethystThemeSeparatorColor(void) {
+    return AmethystDynamicColor(0xD5DEE8, 0x2A3340, 1.0);
+}
+
+UIColor* AmethystThemeSelectionColor(void) {
+    return AmethystDynamicColor(0xDCE9F7, 0x233040, 1.0);
+}
+
+void AmethystApplyThemeAppearance(void) {
+    UIColor *accent = AmethystThemeAccentColor();
+    UIColor *surface = AmethystThemeSurfaceColor();
+    UIColor *text = AmethystThemeTextPrimaryColor();
+    UIColor *separator = AmethystThemeSeparatorColor();
+
+    if (@available(iOS 13.0, *)) {
+        UINavigationBarAppearance *navAppearance = [[UINavigationBarAppearance alloc] init];
+        [navAppearance configureWithOpaqueBackground];
+        navAppearance.backgroundColor = surface;
+        navAppearance.titleTextAttributes = @{NSForegroundColorAttributeName: text};
+        navAppearance.largeTitleTextAttributes = @{NSForegroundColorAttributeName: text};
+        navAppearance.shadowColor = separator;
+
+        UINavigationBar *navProxy = [UINavigationBar appearance];
+        navProxy.standardAppearance = navAppearance;
+        navProxy.compactAppearance = navAppearance;
+        navProxy.scrollEdgeAppearance = navAppearance;
+        navProxy.tintColor = accent;
+
+        UIToolbarAppearance *toolbarAppearance = [[UIToolbarAppearance alloc] init];
+        [toolbarAppearance configureWithOpaqueBackground];
+        toolbarAppearance.backgroundColor = surface;
+        toolbarAppearance.shadowColor = separator;
+
+        UIToolbar *toolbarProxy = [UIToolbar appearance];
+        toolbarProxy.standardAppearance = toolbarAppearance;
+        toolbarProxy.compactAppearance = toolbarAppearance;
+        toolbarProxy.scrollEdgeAppearance = toolbarAppearance;
+        toolbarProxy.tintColor = accent;
+
+        UITableView *tableProxy = [UITableView appearance];
+        tableProxy.backgroundColor = AmethystThemeBackgroundColor();
+        tableProxy.separatorColor = separator;
+
+        UISwitch *switchProxy = [UISwitch appearance];
+        switchProxy.onTintColor = accent;
+
+        UIProgressView *progressProxy = [UIProgressView appearance];
+        progressProxy.tintColor = accent;
+
+        UITextField *textFieldProxy = [UITextField appearance];
+        textFieldProxy.tintColor = accent;
+    } else {
+        UINavigationBar *navProxy = [UINavigationBar appearance];
+        navProxy.barTintColor = surface;
+        navProxy.titleTextAttributes = @{NSForegroundColorAttributeName: text};
+        navProxy.tintColor = accent;
+
+        UIToolbar *toolbarProxy = [UIToolbar appearance];
+        toolbarProxy.barTintColor = surface;
+        toolbarProxy.tintColor = accent;
+
+        UISwitch *switchProxy = [UISwitch appearance];
+        switchProxy.onTintColor = accent;
+    }
+}
+
+void AmethystApplyThemeToWindow(UIWindow *window) {
+    if (!window) return;
+    window.tintColor = AmethystThemeAccentColor();
+    window.backgroundColor = AmethystThemeBackgroundColor();
 }
 
 void customNSLog(const char *file, int lineNumber, const char *functionName, NSString *format, ...)
