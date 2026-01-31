@@ -126,15 +126,20 @@
     cell.detailTextLabel.text = nil;
 
     NSString *key = item[@"key"];
+    NSString *sectionKey = self.prefSections[indexPath.section];
     if (indexPath.row == 0 && self.prefSections) {
-        key = self.prefSections[indexPath.section];
+        key = sectionKey;
         cell.selectionStyle = UITableViewCellSelectionStyleDefault;
         cell.textLabel.text = localize(([NSString stringWithFormat:@"preference.section.%@", key]), nil);
     } else {
+        NSString *itemSection = item[@"section"];
+        if (itemSection) {
+            sectionKey = itemSection;
+        }
         CreateView createView = item[@"type"];
-        createView(cell, self.prefSections[indexPath.section], key, item);
+        createView(cell, sectionKey, key, item);
         if (cell.accessoryView) {
-            objc_setAssociatedObject(cell.accessoryView, @"section", self.prefSections[indexPath.section], OBJC_ASSOCIATION_ASSIGN);
+            objc_setAssociatedObject(cell.accessoryView, @"section", sectionKey, OBJC_ASSOCIATION_ASSIGN);
             objc_setAssociatedObject(cell.accessoryView, @"key", key, OBJC_ASSOCIATION_ASSIGN);
             objc_setAssociatedObject(cell.accessoryView, @"item", item, OBJC_ASSOCIATION_ASSIGN);
         }
@@ -393,8 +398,9 @@
             actionWithTitle:pickList[i]
             image:nil identifier:nil
             handler:^(UIAction *action) {
+                NSString *sectionKey = item[@"section"] ?: self.prefSections[indexPath.section];
                 cell.detailTextLabel.text = pickKeys[i];
-                self.setPreference(self.prefSections[indexPath.section], item[@"key"], pickKeys[i]);
+                self.setPreference(sectionKey, item[@"key"], pickKeys[i]);
                 void(^invokeAction)(NSString *) = item[@"action"];
                 if (invokeAction) {
                     invokeAction(pickKeys[i]);
