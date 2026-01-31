@@ -60,6 +60,8 @@
         self.navigationItem.rightBarButtonItems = @[[sidebarViewController drawAccountButton], [self drawHelpButton]];
     }
 
+    self.tableView.rowHeight = getPrefBool(@"general.settings_compact_rows") ? 44.0 : 56.0;
+
     // Scan for child pane cells and reload them
     // FIXME: any cheaper operations?
     NSMutableArray *indexPaths = [[NSMutableArray alloc] init];
@@ -142,8 +144,14 @@
 
     // Set general properties
     BOOL destructive = [item[@"destructive"] boolValue];
-    cell.imageView.tintColor = destructive ? UIColor.systemRedColor : AmethystThemeAccentColor();
-    cell.imageView.image = [UIImage systemImageNamed:item[@"icon"]];
+    BOOL showIcons = getPrefBool(@"general.settings_show_icons");
+    cell.imageView.hidden = !showIcons;
+    if (showIcons) {
+        cell.imageView.tintColor = destructive ? UIColor.systemRedColor : AmethystThemeAccentColor();
+        cell.imageView.image = [UIImage systemImageNamed:item[@"icon"]];
+    } else {
+        cell.imageView.image = nil;
+    }
     
     if (cellStyle != UITableViewCellStyleValue1) {
         cell.detailTextLabel.text = nil;
@@ -298,6 +306,9 @@
     // Some settings may affect the availability of other settings
     // In this case, a switch may request to reload to apply user interaction change
     if ([item[@"requestReload"] boolValue]) {
+        if ([key isEqualToString:@"settings_compact_rows"]) {
+            self.tableView.rowHeight = sender.isOn ? 44.0 : 56.0;
+        }
         // TODO: only reload needed rows
         [self.tableView reloadData];
     }
@@ -307,7 +318,8 @@
     [tableView deselectRowAtIndexPath:indexPath animated:NO];
     if (indexPath.row == 0 && self.prefSections) {
         self.prefSectionsVisibility[indexPath.section] = @(![self.prefSectionsVisibility[indexPath.section] boolValue]);
-        [tableView reloadSections:[NSIndexSet indexSetWithIndex:indexPath.section] withRowAnimation:UITableViewRowAnimationFade];
+        UITableViewRowAnimation animation = getPrefBool(@"general.reduce_motion") ? UITableViewRowAnimationNone : UITableViewRowAnimationFade;
+        [tableView reloadSections:[NSIndexSet indexSetWithIndex:indexPath.section] withRowAnimation:animation];
         return;
     }
 
