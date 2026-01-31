@@ -84,6 +84,18 @@ NSMutableDictionary* parseJSONFromFile(NSString *path);
 NSError* saveJSONToFile(NSDictionary *dict, NSString *path);
 void customNSLog(const char *file, int lineNumber, const char *functionName, NSString *format, ...);
 
+UIColor* AmethystThemeBackgroundColor(void);
+UIColor* AmethystThemeSurfaceColor(void);
+UIColor* AmethystThemeSurfaceElevatedColor(void);
+UIColor* AmethystThemeAccentColor(void);
+UIColor* AmethystThemeAccentSoftColor(void);
+UIColor* AmethystThemeTextPrimaryColor(void);
+UIColor* AmethystThemeTextSecondaryColor(void);
+UIColor* AmethystThemeSeparatorColor(void);
+UIColor* AmethystThemeSelectionColor(void);
+void AmethystApplyThemeAppearance(void);
+void AmethystApplyThemeToWindow(UIWindow *window);
+
 static inline CGFloat clamp(CGFloat x, CGFloat lower, CGFloat upper) {
     return fmin(upper, fmax(x, lower));
 }
