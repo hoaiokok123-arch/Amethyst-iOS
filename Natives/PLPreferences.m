@@ -74,7 +74,19 @@
         NSDictionary *general = @{
             @"game_directory": @"default",
             @"hidden_sidebar": @(realUIIdiom == UIUserInterfaceIdiomPhone),
-            @"appicon": @"AppIcon-Light"
+            @"appicon": @"AppIcon-Light",
+            @"theme_accent": @"teal",
+            @"theme_mode": @"system",
+            @"menu_compact": @NO,
+            @"menu_show_icons": @YES,
+            @"menu_show_account": @YES,
+            @"menu_show_news": @YES,
+            @"menu_show_custom_controls": @YES,
+            @"menu_show_mod_installer": @YES,
+            @"menu_show_send_logs": @YES,
+            @"reduce_motion": @NO,
+            @"settings_compact_rows": @NO,
+            @"settings_show_icons": @YES
         };
         [defaults[@"general"] addEntriesFromDictionary:general];
 
