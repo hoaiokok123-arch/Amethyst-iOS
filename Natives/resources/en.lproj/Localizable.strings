@@ -132,6 +132,7 @@
 "Settings" = "Settings";
 
 "preference.section.general" = "General Settings";
+"preference.section.theme" = "Theme";
 "preference.section.video" = "Video and Audio Settings";
 "preference.section.footer.video" = "Auto renderer allows Amethyst to choose the best option based on Minecraft version. Decreasing resolution reduces GPU workload for better performance.";
 "preference.section.control" = "Control customization";
@@ -160,6 +161,42 @@
 "preference.title.appicon-development" = "Penciled Development";
 "preference.title.hidden_sidebar" = "Hide main menu sidebar by default";
 "preference.detail.hidden_sidebar" = "Allows you to hide the sidebar on the main menu by default and when rotating.";
+
+"preference.title.theme_accent" = "Theme color";
+"preference.detail.theme_accent" = "Change the accent color used across the launcher UI.";
+"preference.pick.theme_accent.teal" = "Teal";
+"preference.pick.theme_accent.blue" = "Blue";
+"preference.pick.theme_accent.purple" = "Purple";
+"preference.pick.theme_accent.pink" = "Pink";
+"preference.pick.theme_accent.orange" = "Orange";
+"preference.pick.theme_accent.red" = "Red";
+"preference.pick.theme_accent.green" = "Green";
+"preference.pick.theme_accent.mono" = "Mono";
+"preference.title.theme_mode" = "Appearance";
+"preference.detail.theme_mode" = "Choose light, dark, or follow the system.";
+"preference.pick.theme_mode.system" = "System";
+"preference.pick.theme_mode.light" = "Light";
+"preference.pick.theme_mode.dark" = "Dark";
+"preference.title.menu_compact" = "Compact menu";
+"preference.detail.menu_compact" = "Reduce spacing in the sidebar menu.";
+"preference.title.menu_show_icons" = "Show menu icons";
+"preference.detail.menu_show_icons" = "Display icons next to menu items.";
+"preference.title.menu_show_account" = "Show account button";
+"preference.detail.menu_show_account" = "Display the account switcher in the sidebar.";
+"preference.title.menu_show_news" = "Show News tab";
+"preference.detail.menu_show_news" = "Display the News section in the sidebar.";
+"preference.title.menu_show_custom_controls" = "Show Custom Controls";
+"preference.detail.menu_show_custom_controls" = "Display Custom Controls in the sidebar.";
+"preference.title.menu_show_mod_installer" = "Show Mod Installer";
+"preference.detail.menu_show_mod_installer" = "Display the Execute .jar menu item.";
+"preference.title.menu_show_send_logs" = "Show Send Logs";
+"preference.detail.menu_show_send_logs" = "Display the Send Logs menu item.";
+"preference.title.reduce_motion" = "Reduce motion";
+"preference.detail.reduce_motion" = "Disable animations in settings lists.";
+"preference.title.settings_compact_rows" = "Compact settings list";
+"preference.detail.settings_compact_rows" = "Reduce spacing in the settings list.";
+"preference.title.settings_show_icons" = "Show settings icons";
+"preference.detail.settings_show_icons" = "Display icons next to settings.";
 
 "preference.title.reset_warnings" = "Reset all warnings";
 "preference.title.done.reset_warnings" = "All warnings have been reset.";
