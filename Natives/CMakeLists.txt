@@ -1,10 +1,16 @@
 cmake_minimum_required(VERSION 3.6)
-project(AngelAuraAmethyst)
+project(AngelAuraAmethyst LANGUAGES C OBJC)
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.in ${CMAKE_CURRENT_LIST_DIR}/config.h)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target arm64-apple-ios -mcpu=apple-a8 -fcommon -fobjc-arc -ObjC -F'${CMAKE_OSX_SYSROOT}/System/Cryptexes/OS/System/Library/Frameworks'")
+set(COMMON_OBJC_FLAGS "-target arm64-apple-ios -mcpu=apple-a8 -fcommon -fobjc-arc -F'${CMAKE_OSX_SYSROOT}/System/Cryptexes/OS/System/Library/Frameworks'")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_OBJC_FLAGS}")
+set(CMAKE_OBJC_FLAGS "${CMAKE_OBJC_FLAGS} ${COMMON_OBJC_FLAGS}")
 set(CMAKE_C_FLAGS_DEBUG "-funwind-tables -g")
+set(CMAKE_OBJC_FLAGS_DEBUG "-funwind-tables -g")
+
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -ObjC")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -ObjC")
 
 if("${CMAKE_HOST_SYSTEM_NAME}" MATCHES "Linux|^GNU$|Android")
 set(GLOBAL_LDFLAGS "-isysroot ${CMAKE_OSX_SYSROOT} -Wl,-syslibroot,${CMAKE_OSX_SYSROOT} -fuse-ld=lld")
