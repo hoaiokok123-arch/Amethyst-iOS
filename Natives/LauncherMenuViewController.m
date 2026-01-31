@@ -43,6 +43,13 @@
 @property(nonatomic) NSMutableArray<LauncherMenuCustomItem*> *options;
 @property(nonatomic) UILabel *statusLabel;
 @property(nonatomic) int lastSelectedIndex;
+@property(nonatomic) BOOL compactMenu;
+@property(nonatomic) BOOL showMenuIcons;
+@property(nonatomic) BOOL showAccountButton;
+@property(nonatomic) BOOL showMenuNews;
+@property(nonatomic) BOOL showMenuCustomControls;
+@property(nonatomic) BOOL showMenuModInstaller;
+@property(nonatomic) BOOL showMenuSendLogs;
 @end
 
 @implementation LauncherMenuViewController
@@ -62,60 +69,6 @@
     self.navigationItem.titleView = titleView;
     [titleView sizeToFit];
     
-    self.options = @[
-        [LauncherMenuCustomItem vcClass:LauncherNewsViewController.class],
-        [LauncherMenuCustomItem vcClass:LauncherProfilesViewController.class],
-        [LauncherMenuCustomItem vcClass:LauncherPreferencesViewController.class],
-    ].mutableCopy;
-    if (realUIIdiom != UIUserInterfaceIdiomTV) {
-        [self.options addObject:(id)[LauncherMenuCustomItem
-                                     title:localize(@"launcher.menu.custom_controls", nil)
-                                     imageName:@"MenuCustomControls" action:^{
-            [contentNavigationController performSelector:@selector(enterCustomControls)];
-        }]];
-    }
-    [self.options addObject:
-     (id)[LauncherMenuCustomItem
-          title:localize(@"launcher.menu.execute_jar", nil)
-          imageName:@"MenuInstallJar" action:^{
-        [contentNavigationController performSelector:@selector(enterModInstaller)];
-    }]];
-    
-    // TODO: Finish log-uploading service integration
-    [self.options addObject:
-     (id)[LauncherMenuCustomItem
-          title:localize(@"login.menu.sendlogs", nil)
-          imageName:@"square.and.arrow.up" action:^{
-        NSString *latestlogPath = [NSString stringWithFormat:@"file://%s/latestlog.old.txt", getenv("POJAV_HOME")];
-        NSLog(@"Path is %@", latestlogPath);
-        UIActivityViewController *activityVC;
-        if (realUIIdiom != UIUserInterfaceIdiomTV) {
-            activityVC = [[UIActivityViewController alloc]
-                          initWithActivityItems:@[[NSURL URLWithString:latestlogPath]]
-                          applicationActivities:nil];
-        } else {
-            dlopen("/System/Library/PrivateFrameworks/SharingUI.framework/SharingUI", RTLD_GLOBAL);
-            activityVC =
-            [[NSClassFromString(@"SFAirDropSharingViewControllerTV") alloc]
-             performSelector:@selector(initWithSharingItems:)
-             withObject:@[[NSURL URLWithString:latestlogPath]]];
-        }
-        activityVC.popoverPresentationController.sourceView = titleView;
-        activityVC.popoverPresentationController.sourceRect = titleView.bounds;
-        [self presentViewController:activityVC animated:YES completion:nil];
-    }]];
-    
-    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
-    dateFormatter.dateFormat = @"MM-dd";
-    NSString* date = [dateFormatter stringFromDate:NSDate.date];
-    if([date isEqualToString:@"06-29"] || [date isEqualToString:@"06-30"] || [date isEqualToString:@"07-01"]) {
-        [self.options addObject:(id)[LauncherMenuCustomItem
-                                     title:@"Technoblade never dies!"
-                                     imageName:@"" action:^{
-            openLink(self, [NSURL URLWithString:@"https://youtu.be/DPMluEVUqS0"]);
-        }]];
-    }
-    
     self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
     
     self.navigationController.toolbarHidden = NO;
@@ -132,6 +85,7 @@
     self.accountBtnItem = [self drawAccountButton];
     
     [self updateAccountInfo];
+    [self applyMenuPreferences];
     
     NSIndexPath *indexPath = [NSIndexPath indexPathForRow:0 inSection:0];
     [self.tableView selectRowAtIndexPath:indexPath animated:YES scrollPosition:UITableViewScrollPositionNone];
@@ -161,7 +115,100 @@
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
+    [self applyMenuPreferences];
     [self restoreHighlightedSelection];
+}
+
+- (void)rebuildMenuOptions {
+    NSMutableArray<LauncherMenuCustomItem *> *options = [NSMutableArray new];
+
+    if (self.showMenuNews) {
+        [options addObject:[LauncherMenuCustomItem vcClass:LauncherNewsViewController.class]];
+    }
+    [options addObject:[LauncherMenuCustomItem vcClass:LauncherProfilesViewController.class]];
+    [options addObject:[LauncherMenuCustomItem vcClass:LauncherPreferencesViewController.class]];
+
+    if (realUIIdiom != UIUserInterfaceIdiomTV && self.showMenuCustomControls) {
+        [options addObject:(id)[LauncherMenuCustomItem
+                                     title:localize(@"launcher.menu.custom_controls", nil)
+                                     imageName:@"MenuCustomControls" action:^{
+            [contentNavigationController performSelector:@selector(enterCustomControls)];
+        }]];
+    }
+    if (self.showMenuModInstaller) {
+        [options addObject:
+         (id)[LauncherMenuCustomItem
+              title:localize(@"launcher.menu.execute_jar", nil)
+              imageName:@"MenuInstallJar" action:^{
+            [contentNavigationController performSelector:@selector(enterModInstaller)];
+        }]];
+    }
+
+    if (self.showMenuSendLogs) {
+        // TODO: Finish log-uploading service integration
+        [options addObject:
+         (id)[LauncherMenuCustomItem
+              title:localize(@"login.menu.sendlogs", nil)
+              imageName:@"square.and.arrow.up" action:^{
+            NSString *latestlogPath = [NSString stringWithFormat:@"file://%s/latestlog.old.txt", getenv("POJAV_HOME")];
+            NSLog(@"Path is %@", latestlogPath);
+            UIActivityViewController *activityVC;
+            if (realUIIdiom != UIUserInterfaceIdiomTV) {
+                activityVC = [[UIActivityViewController alloc]
+                              initWithActivityItems:@[[NSURL URLWithString:latestlogPath]]
+                              applicationActivities:nil];
+            } else {
+                dlopen("/System/Library/PrivateFrameworks/SharingUI.framework/SharingUI", RTLD_GLOBAL);
+                activityVC =
+                [[NSClassFromString(@"SFAirDropSharingViewControllerTV") alloc]
+                 performSelector:@selector(initWithSharingItems:)
+                 withObject:@[[NSURL URLWithString:latestlogPath]]];
+            }
+            UIView *sourceView = self.navigationItem.titleView ?: self.view;
+            activityVC.popoverPresentationController.sourceView = sourceView;
+            activityVC.popoverPresentationController.sourceRect = sourceView.bounds;
+            [self presentViewController:activityVC animated:YES completion:nil];
+        }]];
+    }
+
+    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+    dateFormatter.dateFormat = @"MM-dd";
+    NSString* date = [dateFormatter stringFromDate:NSDate.date];
+    if ([date isEqualToString:@"06-29"] || [date isEqualToString:@"06-30"] || [date isEqualToString:@"07-01"]) {
+        [options addObject:(id)[LauncherMenuCustomItem
+                                     title:@"Technoblade never dies!"
+                                     imageName:@"" action:^{
+            openLink(self, [NSURL URLWithString:@"https://youtu.be/DPMluEVUqS0"]);
+        }]];
+    }
+
+    self.options = options;
+    if (self.lastSelectedIndex >= self.options.count) {
+        self.lastSelectedIndex = 0;
+    }
+    [self.tableView reloadData];
+}
+
+- (void)applyMenuPreferences {
+    self.compactMenu = getPrefBool(@"general.menu_compact");
+    self.showMenuIcons = getPrefBool(@"general.menu_show_icons");
+    self.showAccountButton = getPrefBool(@"general.menu_show_account");
+    self.showMenuNews = getPrefBool(@"general.menu_show_news");
+    self.showMenuCustomControls = getPrefBool(@"general.menu_show_custom_controls");
+    self.showMenuModInstaller = getPrefBool(@"general.menu_show_mod_installer");
+    self.showMenuSendLogs = getPrefBool(@"general.menu_show_send_logs");
+
+    self.tableView.rowHeight = self.compactMenu ? 44.0 : 56.0;
+    [self rebuildMenuOptions];
+
+    if (self.accountButton) {
+        self.accountButton.hidden = !self.showAccountButton;
+        self.accountButton.userInteractionEnabled = self.showAccountButton;
+    }
+    if (self.accountBtnItem) {
+        self.accountBtnItem.enabled = self.showAccountButton;
+        self.accountBtnItem.customView.hidden = !self.showAccountButton;
+    }
 }
 
 - (UIBarButtonItem *)drawAccountButton {
@@ -204,29 +251,37 @@
 
     cell.textLabel.text = [self.options[indexPath.row] title];
     
-    UIImage *origImage = [UIImage systemImageNamed:[self.options[indexPath.row]
-        performSelector:@selector(imageName)]];
-    if (origImage) {
-        UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(40, 40)];
-        UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext*_Nonnull myContext) {
-            CGFloat scaleFactor = 40/origImage.size.height;
-            [origImage drawInRect:CGRectMake(20 - origImage.size.width*scaleFactor/2, 0, origImage.size.width*scaleFactor, 40)];
-        }];
-        cell.imageView.image = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-    }
-    
-    if (cell.imageView.image == nil) {
-        cell.imageView.layer.magnificationFilter = kCAFilterNearest;
-        cell.imageView.layer.minificationFilter = kCAFilterNearest;
-        cell.imageView.image = [UIImage imageNamed:[self.options[indexPath.row]
+    if (!self.showMenuIcons) {
+        cell.imageView.hidden = YES;
+        cell.imageView.image = nil;
+    } else {
+        cell.imageView.hidden = NO;
+        UIImage *origImage = [UIImage systemImageNamed:[self.options[indexPath.row]
             performSelector:@selector(imageName)]];
-        cell.imageView.image = [cell.imageView.image _imageWithSize:CGSizeMake(40, 40)];
+        if (origImage) {
+            UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(40, 40)];
+            UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext*_Nonnull myContext) {
+                CGFloat scaleFactor = 40/origImage.size.height;
+                [origImage drawInRect:CGRectMake(20 - origImage.size.width*scaleFactor/2, 0, origImage.size.width*scaleFactor, 40)];
+            }];
+            cell.imageView.image = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+        }
+        
+        if (cell.imageView.image == nil) {
+            cell.imageView.layer.magnificationFilter = kCAFilterNearest;
+            cell.imageView.layer.minificationFilter = kCAFilterNearest;
+            cell.imageView.image = [UIImage imageNamed:[self.options[indexPath.row]
+                performSelector:@selector(imageName)]];
+            cell.imageView.image = [cell.imageView.image _imageWithSize:CGSizeMake(40, 40)];
+        }
     }
 
     cell.backgroundColor = AmethystThemeSurfaceColor();
     cell.contentView.backgroundColor = AmethystThemeSurfaceColor();
     cell.textLabel.textColor = AmethystThemeTextPrimaryColor();
-    cell.imageView.tintColor = AmethystThemeAccentColor();
+    if (self.showMenuIcons) {
+        cell.imageView.tintColor = AmethystThemeAccentColor();
+    }
     UIView *selectedBackground = [UIView new];
     selectedBackground.backgroundColor = AmethystThemeSelectionColor();
     cell.selectedBackgroundView = selectedBackground;
