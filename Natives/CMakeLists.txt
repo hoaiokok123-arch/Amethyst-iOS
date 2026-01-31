@@ -158,6 +158,7 @@ add_executable(AngelAuraAmethyst
   LauncherPrefContCfgViewController.m
   LauncherPrefGameDirViewController.m
   LauncherPrefManageJREViewController.m
+  ProfileEditorFactory.m
   LauncherProfileEditorViewController.m
   LauncherProfilesViewController.m
   LauncherSplitViewController.m
