@@ -44,13 +44,20 @@
     self.hasDetail = YES;
     self.prefDetailVisible = self.navigationController == nil;
     
-    self.prefSections = @[@"general", @"video", @"control", @"java", @"debug"];
+    self.prefSections = @[@"general", @"theme", @"video", @"control", @"java", @"debug"];
 
     self.rendererKeys = getRendererKeys(NO);
     self.rendererList = getRendererNames(NO);
-    
+
+    __weak __typeof(self) weakSelf = self;
     BOOL(^whenNotInGame)() = ^BOOL(){
         return self.navigationController != nil;
+    };
+    void(^applyThemeChanges)(void) = ^void() {
+        AmethystApplyThemeAppearance();
+        AmethystApplyThemeToWindow(UIWindow.mainWindow);
+        AmethystApplyThemeToWindow(UIWindow.externalWindow);
+        [weakSelf.tableView reloadData];
     };
     self.prefContents = @[
         @[
@@ -107,6 +114,65 @@
               @"type": self.typeSwitch,
               @"enableCondition": whenNotInGame
             },
+            @{@"key": @"menu_compact",
+              @"hasDetail": @YES,
+              @"icon": @"list.bullet.rectangle",
+              @"type": self.typeSwitch,
+              @"enableCondition": whenNotInGame
+            },
+            @{@"key": @"menu_show_icons",
+              @"hasDetail": @YES,
+              @"icon": @"square.grid.2x2",
+              @"type": self.typeSwitch,
+              @"enableCondition": whenNotInGame
+            },
+            @{@"key": @"menu_show_account",
+              @"hasDetail": @YES,
+              @"icon": @"person.crop.circle",
+              @"type": self.typeSwitch,
+              @"enableCondition": whenNotInGame
+            },
+            @{@"key": @"menu_show_news",
+              @"hasDetail": @YES,
+              @"icon": @"newspaper",
+              @"type": self.typeSwitch,
+              @"enableCondition": whenNotInGame
+            },
+            @{@"key": @"menu_show_custom_controls",
+              @"hasDetail": @YES,
+              @"icon": @"hand.tap",
+              @"type": self.typeSwitch,
+              @"enableCondition": whenNotInGame
+            },
+            @{@"key": @"menu_show_mod_installer",
+              @"hasDetail": @YES,
+              @"icon": @"shippingbox",
+              @"type": self.typeSwitch,
+              @"enableCondition": whenNotInGame
+            },
+            @{@"key": @"menu_show_send_logs",
+              @"hasDetail": @YES,
+              @"icon": @"square.and.arrow.up",
+              @"type": self.typeSwitch,
+              @"enableCondition": whenNotInGame
+            },
+            @{@"key": @"reduce_motion",
+              @"hasDetail": @YES,
+              @"icon": @"figure.walk",
+              @"type": self.typeSwitch
+            },
+            @{@"key": @"settings_compact_rows",
+              @"hasDetail": @YES,
+              @"icon": @"line.3.horizontal",
+              @"type": self.typeSwitch,
+              @"requestReload": @YES
+            },
+            @{@"key": @"settings_show_icons",
+              @"hasDetail": @YES,
+              @"icon": @"square.grid.2x2",
+              @"type": self.typeSwitch,
+              @"requestReload": @YES
+            },
             @{@"key": @"reset_warnings",
               @"icon": @"exclamationmark.triangle",
               @"type": self.typeButton,
@@ -151,6 +217,57 @@
                       NSLog(@"Error in erase_demo_data: %@", error);
                       showDialog(localize(@"Error", nil), error.localizedDescription);
                   }
+              }
+            }
+        ], @[
+            // Theme settings
+            @{@"icon": @"paintpalette"},
+            @{@"key": @"theme_accent",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"paintpalette",
+              @"type": self.typePickField,
+              @"pickKeys": @[
+                  @"teal",
+                  @"blue",
+                  @"purple",
+                  @"pink",
+                  @"orange",
+                  @"red",
+                  @"green",
+                  @"mono"
+              ],
+              @"pickList": @[
+                  localize(@"preference.pick.theme_accent.teal", nil),
+                  localize(@"preference.pick.theme_accent.blue", nil),
+                  localize(@"preference.pick.theme_accent.purple", nil),
+                  localize(@"preference.pick.theme_accent.pink", nil),
+                  localize(@"preference.pick.theme_accent.orange", nil),
+                  localize(@"preference.pick.theme_accent.red", nil),
+                  localize(@"preference.pick.theme_accent.green", nil),
+                  localize(@"preference.pick.theme_accent.mono", nil)
+              ],
+              @"action": ^(NSString *value){
+                  applyThemeChanges();
+              }
+            },
+            @{@"key": @"theme_mode",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"circle.lefthalf.filled",
+              @"type": self.typePickField,
+              @"pickKeys": @[
+                  @"system",
+                  @"light",
+                  @"dark"
+              ],
+              @"pickList": @[
+                  localize(@"preference.pick.theme_mode.system", nil),
+                  localize(@"preference.pick.theme_mode.light", nil),
+                  localize(@"preference.pick.theme_mode.dark", nil)
+              ],
+              @"action": ^(NSString *value){
+                  applyThemeChanges();
               }
             }
         ], @[
