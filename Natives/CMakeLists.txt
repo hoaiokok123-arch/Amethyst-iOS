@@ -3,9 +3,9 @@ project(AngelAuraAmethyst LANGUAGES C OBJC)
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.in ${CMAKE_CURRENT_LIST_DIR}/config.h)
 
-set(COMMON_OBJC_FLAGS "-target arm64-apple-ios -mcpu=apple-a8 -fcommon -fobjc-arc -F'${CMAKE_OSX_SYSROOT}/System/Cryptexes/OS/System/Library/Frameworks'")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_OBJC_FLAGS}")
-set(CMAKE_OBJC_FLAGS "${CMAKE_OBJC_FLAGS} ${COMMON_OBJC_FLAGS}")
+set(COMMON_C_FLAGS "-target arm64-apple-ios -mcpu=apple-a8 -fcommon -F'${CMAKE_OSX_SYSROOT}/System/Cryptexes/OS/System/Library/Frameworks'")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_C_FLAGS}")
+set(CMAKE_OBJC_FLAGS "${CMAKE_OBJC_FLAGS} ${COMMON_C_FLAGS} -fobjc-arc")
 set(CMAKE_C_FLAGS_DEBUG "-funwind-tables -g")
 set(CMAKE_OBJC_FLAGS_DEBUG "-funwind-tables -g")
 
