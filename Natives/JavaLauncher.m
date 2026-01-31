@@ -2,6 +2,10 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <libgen.h>
+#include <mach/exception_types.h>
+#include <mach/mach.h>
+#include <mach/mach_init.h>
+#include <mach/task.h>
 #include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
