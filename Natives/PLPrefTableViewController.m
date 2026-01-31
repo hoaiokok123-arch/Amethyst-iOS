@@ -31,6 +31,9 @@
 
     self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
     self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeInteractive;
+    self.view.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.separatorColor = AmethystThemeSeparatorColor();
     if (self.prefSections) {
         self.prefSectionsVisibility = [[NSMutableArray<NSNumber *> alloc] initWithCapacity:self.prefSections.count];
         for (int i = 0; i < self.prefSections.count; i++) {
@@ -139,7 +142,7 @@
 
     // Set general properties
     BOOL destructive = [item[@"destructive"] boolValue];
-    cell.imageView.tintColor = destructive ? UIColor.systemRedColor : nil;
+    cell.imageView.tintColor = destructive ? UIColor.systemRedColor : AmethystThemeAccentColor();
     cell.imageView.image = [UIImage systemImageNamed:item[@"icon"]];
     
     if (cellStyle != UITableViewCellStyleValue1) {
@@ -154,6 +157,18 @@
     cell.userInteractionEnabled = !checkEnable || checkEnable();
     cell.textLabel.enabled = cell.detailTextLabel.enabled = cell.userInteractionEnabled;
     [(id)cell.accessoryView setEnabled:cell.userInteractionEnabled];
+
+    if (!destructive && cell.textLabel.textColor == nil) {
+        cell.textLabel.textColor = AmethystThemeTextPrimaryColor();
+    }
+    if (cell.detailTextLabel && cell.detailTextLabel.textColor == nil) {
+        cell.detailTextLabel.textColor = AmethystThemeTextSecondaryColor();
+    }
+    cell.backgroundColor = AmethystThemeSurfaceColor();
+    cell.contentView.backgroundColor = AmethystThemeSurfaceColor();
+    UIView *selectedBackground = [UIView new];
+    selectedBackground.backgroundColor = AmethystThemeSelectionColor();
+    cell.selectedBackgroundView = selectedBackground;
 
     return cell;
 }
