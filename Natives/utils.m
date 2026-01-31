@@ -1,5 +1,7 @@
 #import <SafariServices/SafariServices.h>
 
+#import "LauncherPreferences.h"
+
 #include "jni.h"
 #include <dlfcn.h>
 #include <stdio.h>
@@ -28,6 +30,46 @@ static UIColor *AmethystDynamicColor(uint32_t lightHex, uint32_t darkHex, CGFloa
         }];
     }
     return light;
+}
+
+typedef struct {
+    const char *key;
+    uint32_t light;
+    uint32_t dark;
+    uint32_t lightSoft;
+    uint32_t darkSoft;
+} AmethystAccentPalette;
+
+static const AmethystAccentPalette kAmethystAccentPalettes[] = {
+    {"teal", 0x1F9E93, 0x39D3BB, 0xD6F3EE, 0x163333},
+    {"blue", 0x2F6BFF, 0x6EA1FF, 0xD9E6FF, 0x1A2A4A},
+    {"purple", 0x7A4DFF, 0xB18CFF, 0xE6DBFF, 0x2A2045},
+    {"pink", 0xE85CAB, 0xFF8FD1, 0xFDE0F1, 0x3C2033},
+    {"orange", 0xF28C28, 0xFFB068, 0xFFE9D1, 0x3B2A1A},
+    {"red", 0xE23C3C, 0xFF7B7B, 0xFADADA, 0x3C1E1E},
+    {"green", 0x2FA24A, 0x6EE087, 0xDDF6E3, 0x1D3A25},
+    {"mono", 0x58606A, 0xC0CAD4, 0xE6EAEE, 0x2A323A}
+};
+
+static const AmethystAccentPalette *AmethystAccentPaletteForKey(NSString *key) {
+    if (![key isKindOfClass:NSString.class] || key.length == 0) {
+        return &kAmethystAccentPalettes[0];
+    }
+    for (size_t i = 0; i < sizeof(kAmethystAccentPalettes) / sizeof(kAmethystAccentPalettes[0]); i++) {
+        if ([key isEqualToString:@(kAmethystAccentPalettes[i].key)]) {
+            return &kAmethystAccentPalettes[i];
+        }
+    }
+    return &kAmethystAccentPalettes[0];
+}
+
+static UIColor *AmethystThemeAccentColorForPreference(BOOL soft) {
+    NSString *accentKey = getPrefObject(@"general.theme_accent");
+    const AmethystAccentPalette *palette = AmethystAccentPaletteForKey(accentKey);
+    if (soft) {
+        return AmethystDynamicColor(palette->lightSoft, palette->darkSoft, 1.0);
+    }
+    return AmethystDynamicColor(palette->light, palette->dark, 1.0);
 }
 
 BOOL getEntitlementValue(NSString *key) {
@@ -141,11 +183,11 @@ UIColor* AmethystThemeSurfaceElevatedColor(void) {
 }
 
 UIColor* AmethystThemeAccentColor(void) {
-    return AmethystDynamicColor(0x1F9E93, 0x39D3BB, 1.0);
+    return AmethystThemeAccentColorForPreference(NO);
 }
 
 UIColor* AmethystThemeAccentSoftColor(void) {
-    return AmethystDynamicColor(0xD6F3EE, 0x163333, 1.0);
+    return AmethystThemeAccentColorForPreference(YES);
 }
 
 UIColor* AmethystThemeTextPrimaryColor(void) {
@@ -162,6 +204,19 @@ UIColor* AmethystThemeSeparatorColor(void) {
 
 UIColor* AmethystThemeSelectionColor(void) {
     return AmethystDynamicColor(0xDCE9F7, 0x233040, 1.0);
+}
+
+static UIUserInterfaceStyle AmethystPreferredInterfaceStyle(void) {
+    NSString *mode = getPrefObject(@"general.theme_mode");
+    if ([mode isKindOfClass:NSString.class]) {
+        if ([mode isEqualToString:@"light"]) {
+            return UIUserInterfaceStyleLight;
+        }
+        if ([mode isEqualToString:@"dark"]) {
+            return UIUserInterfaceStyleDark;
+        }
+    }
+    return UIUserInterfaceStyleUnspecified;
 }
 
 void AmethystApplyThemeAppearance(void) {
@@ -224,6 +279,9 @@ void AmethystApplyThemeAppearance(void) {
 
 void AmethystApplyThemeToWindow(UIWindow *window) {
     if (!window) return;
+    if (@available(iOS 13.0, *)) {
+        window.overrideUserInterfaceStyle = AmethystPreferredInterfaceStyle();
+    }
     window.tintColor = AmethystThemeAccentColor();
     window.backgroundColor = AmethystThemeBackgroundColor();
 }
