@@ -3,9 +3,9 @@
 #import "FabricUtils.h"
 #import "LauncherNavigationController.h"
 #import "LauncherPreferences.h"
-#import "LauncherProfileEditorViewController.h"
 #import "PickTextField.h"
 #import "PLProfiles.h"
+#import "ProfileEditorFactory.h"
 #import "ios_uikit_bridge.h"
 #import "utils.h"
 #include <objc/runtime.h>
@@ -162,12 +162,15 @@
                 @"id": response[@"id"],
                 @"type": @"custom"}];
             // Jump to the profile editor
-            LauncherProfileEditorViewController *vc = [LauncherProfileEditorViewController new];
-            vc.profile = @{
+            UIViewController *vc = CreateProfileEditorViewController(@{
                 @"icon": endpoint[@"icon"],
                 @"name": response[@"id"],
                 @"lastVersionId": response[@"id"]
-            }.mutableCopy;
+            });
+            if (!vc) {
+                showDialog(localize(@"Error", nil), @"Profile editor is unavailable in this build.");
+                return;
+            }
             [self.navigationController pushViewController:vc animated:YES];
         }
     } failure:^(NSURLSessionTask *operation, NSError *error) {
