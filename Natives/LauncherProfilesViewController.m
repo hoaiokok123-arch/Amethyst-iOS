@@ -3,8 +3,8 @@
 #import "LauncherPreferences.h"
 #import "LauncherPrefGameDirViewController.h"
 #import "LauncherPrefManageJREViewController.h"
-#import "LauncherProfileEditorViewController.h"
 #import "LauncherProfilesViewController.h"
+#import "ProfileEditorFactory.h"
 //#import "NSFileManager+NRFileManager.h"
 #import "PLProfiles.h"
 #pragma clang diagnostic push
@@ -79,6 +79,9 @@ typedef NS_ENUM(NSUInteger, LauncherProfilesTableSection) {
 
     self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
     self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeInteractive;
+    self.view.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.separatorColor = AmethystThemeSeparatorColor();
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -116,8 +119,11 @@ typedef NS_ENUM(NSUInteger, LauncherProfilesTableSection) {
 }
 
 - (void)actionEditProfile:(NSDictionary *)profile {
-    LauncherProfileEditorViewController *vc = [LauncherProfileEditorViewController new];
-    vc.profile = profile.mutableCopy;
+    UIViewController *vc = CreateProfileEditorViewController(profile);
+    if (!vc) {
+        showDialog(localize(@"Error", nil), @"Profile editor is unavailable in this build.");
+        return;
+    }
     [self presentNavigatedViewController:vc];
 }
 
@@ -209,6 +215,14 @@ typedef NS_ENUM(NSUInteger, LauncherProfilesTableSection) {
     }
 
     cell.textLabel.enabled = cell.detailTextLabel.enabled = cell.userInteractionEnabled;
+    cell.textLabel.textColor = cell.userInteractionEnabled ? AmethystThemeTextPrimaryColor() : AmethystThemeTextSecondaryColor();
+    cell.detailTextLabel.textColor = AmethystThemeTextSecondaryColor();
+    cell.backgroundColor = AmethystThemeSurfaceColor();
+    cell.contentView.backgroundColor = AmethystThemeSurfaceColor();
+    cell.imageView.tintColor = AmethystThemeAccentColor();
+    UIView *selectedBackground = [UIView new];
+    selectedBackground.backgroundColor = AmethystThemeSelectionColor();
+    cell.selectedBackgroundView = selectedBackground;
     return cell;
 }
 
