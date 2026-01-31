@@ -299,6 +299,7 @@ int main(int argc, char *argv[]) {
     loadPreferences(NO);
     init_hookFunctions();
     init_hookUIKitConstructor();
+    AmethystApplyThemeAppearance();
 
     debugLogEnabled = getPrefBool(@"general.debug_logging");
     NSLog(@"[Debugging] Debug log enabled: %@", debugLogEnabled ? @"YES" : @"NO");
