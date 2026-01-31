@@ -1,6 +1,7 @@
 #import "LauncherPreferences.h"
 #import "SceneExternalDelegate.h"
 #import "SurfaceViewController.h"
+#import "utils.h"
 
 extern UIWindow *externalWindow;
 
@@ -16,6 +17,7 @@ extern UIWindow *externalWindow;
     self.window = [[UIWindow alloc] initWithWindowScene:windowScene];
     self.window.frame = windowScene.coordinateSpace.bounds; 
     externalWindow = self.window;
+    AmethystApplyThemeToWindow(self.window);
     if (SurfaceViewController.isRunning && getPrefBool(@"video.fullscreen_airplay")) {
         [UIWindow.mainWindow.rootViewController performSelector:@selector(switchToExternalDisplay)];
     }
