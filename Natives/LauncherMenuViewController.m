@@ -53,6 +53,9 @@
     [super viewDidLoad];
     
     self.isInitialVc = YES;
+    self.view.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.tintColor = AmethystThemeAccentColor();
     
     UIImageView *titleView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"AppLogo"]];
     [titleView setContentMode:UIViewContentModeScaleAspectFit];
@@ -123,7 +126,7 @@
         [[UIBarButtonItem alloc] initWithCustomView:toolbarIndicator],
         [[UIBarButtonItem alloc] init]
     ];
-    self.toolbarItems[1].tintColor = UIColor.labelColor;
+    self.toolbarItems[1].tintColor = AmethystThemeTextSecondaryColor();
     
     // Setup the account button
     self.accountBtnItem = [self drawAccountButton];
@@ -170,6 +173,9 @@
         self.accountButton.titleEdgeInsets = UIEdgeInsetsMake(0, 4, 0, -4);
         self.accountButton.imageView.contentMode = UIViewContentModeScaleAspectFit;
         self.accountButton.titleLabel.lineBreakMode = NSLineBreakByWordWrapping;
+        self.accountButton.tintColor = AmethystThemeAccentColor();
+        [self.accountButton setTitleColor:AmethystThemeTextPrimaryColor() forState:UIControlStateNormal];
+        [self.accountButton setTitleColor:AmethystThemeTextSecondaryColor() forState:UIControlStateHighlighted];
         self.accountBtnItem = [[UIBarButtonItem alloc] initWithCustomView:self.accountButton];
     }
 
@@ -216,6 +222,14 @@
             performSelector:@selector(imageName)]];
         cell.imageView.image = [cell.imageView.image _imageWithSize:CGSizeMake(40, 40)];
     }
+
+    cell.backgroundColor = AmethystThemeSurfaceColor();
+    cell.contentView.backgroundColor = AmethystThemeSurfaceColor();
+    cell.textLabel.textColor = AmethystThemeTextPrimaryColor();
+    cell.imageView.tintColor = AmethystThemeAccentColor();
+    UIView *selectedBackground = [UIView new];
+    selectedBackground.backgroundColor = AmethystThemeSelectionColor();
+    cell.selectedBackgroundView = selectedBackground;
     return cell;
 }
 
