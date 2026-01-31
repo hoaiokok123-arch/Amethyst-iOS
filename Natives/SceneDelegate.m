@@ -16,6 +16,7 @@ extern UIWindow *mainWindow;
     self.window = [[UIWindow alloc] initWithWindowScene:windowScene];
     self.window.frame = windowScene.coordinateSpace.bounds;
     mainWindow = self.window;
+    AmethystApplyThemeToWindow(self.window);
     launchInitialViewController(self.window);
     [self.window makeKeyAndVisible];
 }
