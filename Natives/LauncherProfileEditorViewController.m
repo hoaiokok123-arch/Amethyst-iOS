@@ -1,309 +1,277 @@
+#import "LauncherMenuViewController.h"
 #import "LauncherNavigationController.h"
 #import "LauncherPreferences.h"
+#import "LauncherPrefGameDirViewController.h"
+#import "LauncherPrefManageJREViewController.h"
 #import "LauncherProfileEditorViewController.h"
-#import "MinecraftResourceUtils.h"
-#import "PickTextField.h"
+#import "LauncherProfilesViewController.h"
+//#import "NSFileManager+NRFileManager.h"
 #import "PLProfiles.h"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability-new"
+#import "UIKit+AFNetworking.h"
+#pragma clang diagnostic pop
+#import "UIKit+hook.h"
+#import "installer/FabricInstallViewController.h"
+#import "installer/ForgeInstallViewController.h"
+#import "installer/ModpackInstallViewController.h"
 #import "ios_uikit_bridge.h"
 #import "utils.h"
 
-@interface LauncherProfileEditorViewController()<UIPickerViewDataSource, UIPickerViewDelegate>
-@property(nonatomic) NSString* oldName;
+typedef NS_ENUM(NSUInteger, LauncherProfilesTableSection) {
+    kInstances,
+    kProfiles
+};
 
-@property(nonatomic) NSArray<NSDictionary *> *versionList;
-@property(nonatomic) UITextField* versionTextField;
-@property(nonatomic) UISegmentedControl* versionTypeControl;
-@property(nonatomic) UIPickerView* versionPickerView;
-@property(nonatomic) UIToolbar* versionPickerToolbar;
-@property(nonatomic) int versionSelectedAt;
+@interface LauncherProfilesViewController () //<UIContextMenuInteractionDelegate>
+
+@property(nonatomic) UIBarButtonItem *createButtonItem;
 @end
 
-@implementation LauncherProfileEditorViewController
+@implementation LauncherProfilesViewController
 
-- (void)viewDidLoad {
-    // Setup navigation bar & appearance
-    self.title = localize(@"Edit profile", nil);
-    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(actionDone)];
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemClose target:self action:@selector(actionClose)];
-    self.navigationController.modalInPresentation = YES;
-    self.prefSectionsVisible = YES;
+- (id)init {
+    self = [super init];
+    self.title = localize(@"Profiles", nil);
+    return self;
+}
 
-    // Setup preference getter and setter
-    __weak LauncherProfileEditorViewController *weakSelf = self;
-    self.getPreference = ^id(NSString *section, NSString *key){
-        NSString *value = weakSelf.profile[key];
-        if (value.length > 0 || ![weakSelf isPickFieldAtSection:section key:key]) {
-            return value;
-        } else {
-            return @"(default)";
-        }
-    };
-    self.setPreference = ^(NSString *section, NSString *key, NSString *value){
-        if ([value isEqualToString:@"(default)"] && [weakSelf isPickFieldAtSection:section key:key]) {
-            [weakSelf.profile removeObjectForKey:key];
-        } else if (value) {
-            weakSelf.profile[key] = value;
-        }
-    };
+- (NSString *)imageName {
+    return @"MenuProfiles";
+}
 
-    // Obtain all the lists
-    self.oldName = self.getPreference(nil, @"name");
-    if ([self.oldName length] == 0) {
-        self.setPreference(nil, @"name", @"New Profile");
-    }
-    NSArray *rendererKeys = getRendererKeys(YES);
-    NSArray *rendererList = getRendererNames(YES);
-    NSArray *touchControlList = [self listFilesAtPath:[NSString stringWithFormat:@"%s/controlmap", getenv("POJAV_HOME")]];
-    NSArray *gamepadControlList = [self listFilesAtPath:[NSString stringWithFormat:@"%s/controlmap/gamepads", getenv("POJAV_HOME")]];
-    NSMutableArray *javaList = [getPrefObject(@"java.java_homes") allKeys].mutableCopy;
-    [javaList sortUsingSelector:@selector(compare:)];
-    javaList[0] = @"(default)";
-
-    // Setup version picker
-    [self setupVersionPicker];
-    id typeVersionPicker = ^void(UITableViewCell *cell, NSString *section, NSString *key, NSDictionary *item){
-        self.typeTextField(cell, section, key, item);
-        UITextField *textField = (id)cell.accessoryView;
-        weakSelf.versionTextField = textField;
-        textField.inputAccessoryView = weakSelf.versionPickerToolbar;
-        textField.inputView = weakSelf.versionPickerView;
-        // Auto pick version type
-        if (self.versionList) return;
-        if ([MinecraftResourceUtils findVersion:textField.text inList:localVersionList]) {
-            self.versionTypeControl.selectedSegmentIndex = 0;
-        } else {
-            NSDictionary *selected = (id)[MinecraftResourceUtils findVersion:textField.text inList:remoteVersionList];
-            if (selected) {
-                NSArray *types = @[@"installed", @"release", @"snapshot", @"old_beta", @"old_alpha"];
-                NSString *type = selected[@"type"];
-                self.versionTypeControl.selectedSegmentIndex = [types indexOfObject:type];
-            } else {
-                // Version not found
-                self.versionTypeControl.selectedSegmentIndex = 0;
-            }
-        }
-        self.versionSelectedAt = -1;
-        [self changeVersionType:nil];
-    };
-
-    self.prefContents = @[
-        @[
-            // General settings
-            @{@"key": @"name",
-              @"icon": @"tag",
-              @"title": @"preference.profile.title.name",
-              @"type": self.typeTextField,
-              @"placeholder": self.oldName
-            },
-            @{@"key": @"lastVersionId",
-              @"icon": @"archivebox",
-              @"title": @"preference.profile.title.version",
-              @"type": typeVersionPicker,
-              @"placeholder": self.getPreference(nil, @"lastVersionId"),
-              @"customClass": PickTextField.class
-            },
-            @{@"key": @"gameDir",
-              @"icon": @"folder",
-              @"title": @"preference.title.game_directory",
-              @"type": self.typeTextField,
-              @"placeholder": [NSString stringWithFormat:@". -> /Documents/instances/%@", getPrefObject(@"general.game_directory")]
-            },
-            // Video and renderer settings
-            @{@"key": @"renderer",
-              @"icon": @"cpu",
-              @"type": self.typePickField,
-              @"pickKeys": rendererKeys,
-              @"pickList": rendererList
-            },
-            // Control settings
-            @{@"key": @"defaultTouchCtrl",
-              @"icon": @"hand.tap",
-              @"title": @"preference.profile.title.default_touch_control",
-              @"type": self.typePickField,
-              @"pickKeys": touchControlList,
-              @"pickList": touchControlList
-            },
-            @{@"key": @"defaultGamepadCtrl",
-              @"icon": @"gamecontroller",
-              @"title": @"preference.profile.title.default_gamepad_control",
-              @"type": self.typePickField,
-              @"pickKeys": gamepadControlList,
-              @"pickList": gamepadControlList
-            },
-            // Java tweaks
-            @{@"key": @"javaVersion",
-              @"icon": @"cube",
-              @"title": @"preference.manage_runtime.header.default",
-              @"type": self.typePickField,
-              @"pickKeys": javaList,
-              @"pickList": javaList
-            },
-            @{@"key": @"javaArgs",
-              @"icon": @"slider.vertical.3",
-              @"title": @"preference.title.java_args",
-              @"type": self.typeTextField,
-              @"placeholder": @"(default)"
-            }
-        ]
-    ];
-
+- (void)viewDidLoad
+{
     [super viewDidLoad];
-}
 
-- (void)actionClose {
-    [self.navigationController dismissViewControllerAnimated:YES completion:nil];
-}
-
-- (void)actionDone {
-    // We might be saving without ending editing, so make sure textFieldDidEndEditing is always called
-    UITextField *currentTextField = [self performSelector:@selector(_firstResponder)];
-    if ([currentTextField isKindOfClass:UITextField.class] && [currentTextField isDescendantOfView:self.tableView]) {
-        [self textFieldDidEndEditing:currentTextField];
-    }
-
-    if ([self.profile[@"name"] length] == 0 && self.oldName.length > 0) {
-        // Return to its old name
-        self.profile[@"name"] = self.oldName;
-    }
-
-    if ([self.oldName isEqualToString:self.profile[@"name"]]) {
-        // Not a rename, directly create/replace
-        PLProfiles.current.profiles[self.oldName] = self.profile;
-    } else if (!PLProfiles.current.profiles[self.profile[@"name"]]) {
-        // A rename, remove then re-add to update its key name
-        if (self.oldName.length > 0) {
-            [PLProfiles.current.profiles removeObjectForKey:self.oldName];
-        }
-        PLProfiles.current.profiles[self.profile[@"name"]] = self.profile;
-        // Update selected name
-        if ([PLProfiles.current.selectedProfileName isEqualToString:self.oldName]) {
-            PLProfiles.current.selectedProfileName = self.profile[@"name"];
-        }
-    } else {
-        // Cancel rename since a profile with the same name already exists
-        showDialog(localize(@"Error", nil), localize(@"profile.error.name_exists", nil));
-        // Skip dismissing this view controller
-        return;
-    }
-
-    [PLProfiles.current save];
-    [self actionClose];
-
-    // Call LauncherProfilesViewController's viewWillAppear
-    UINavigationController *navVC = (id) ((UISplitViewController *)self.presentingViewController).viewControllers[1];
-    [navVC.viewControllers[0] viewWillAppear:NO];
-}
-
-- (BOOL)isPickFieldAtSection:(NSString *)section key:(NSString *)key {
-    NSDictionary *pref = [self.prefContents[0] filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"(key == %@)", key]].firstObject;
-    return pref[@"type"] == self.typePickField;
-}
-
-- (NSArray *)listFilesAtPath:(NSString *)path {
-    NSMutableArray *files = [NSFileManager.defaultManager contentsOfDirectoryAtPath:path error:nil].mutableCopy;
-    for (int i = 0; i < files.count;) {
-        if ([files[i] hasSuffix:@".json"]) {
-            i++;
-        } else {
-            [files removeObjectAtIndex:i];
-        }
-    }
-    [files insertObject:@"(default)" atIndex:0];
-    return files;
-}
-
-#pragma mark Version picker
-
-- (void)setupVersionPicker {
-    self.versionPickerView = [[UIPickerView alloc] init];
-    self.versionPickerView.delegate = self;
-    self.versionPickerView.dataSource = self;
-    self.versionPickerToolbar = [[UIToolbar alloc] initWithFrame:CGRectMake(0.0, 0.0, self.view.frame.size.width, 44.0)];
-    self.versionTypeControl = [[UISegmentedControl alloc] initWithItems:@[
-        localize(@"Installed", nil),
-        localize(@"Releases", nil),
-        localize(@"Snapshot", nil),
-        localize(@"Old-beta", nil),
-        localize(@"Old-alpha", nil)
+    UIMenu *createMenu = [UIMenu menuWithTitle:localize(@"profile.title.create", nil) image:nil identifier:nil
+    options:UIMenuOptionsDisplayInline
+    children:@[
+        [UIAction
+            actionWithTitle:@"Vanilla" image:nil
+            identifier:@"vanilla" handler:^(UIAction *action) {
+                [self actionEditProfile:@{
+                    @"name": @"",
+                    @"lastVersionId": @"latest-release"}];
+            }],
+#if 0 // TODO
+        [UIAction
+            actionWithTitle:@"OptiFine" image:nil
+            identifier:@"optifine" handler:createHandler],
+#endif
+        [UIAction
+            actionWithTitle:@"Fabric/Quilt" image:nil
+            identifier:@"fabric_or_quilt" handler:^(UIAction *action) {
+                [self actionCreateFabricProfile];
+            }],
+        [UIAction
+            actionWithTitle:@"Forge" image:nil
+            identifier:@"forge" handler:^(UIAction *action) {
+                [self actionCreateForgeProfile];
+            }],
+        [UIAction
+            actionWithTitle:@"Modpack" image:nil
+            identifier:@"modpack" handler:^(UIAction *action) {
+                [self actionCreateModpackProfile];
+            }]
     ]];
-    [self.versionTypeControl addTarget:self action:@selector(changeVersionType:) forControlEvents:UIControlEventValueChanged];
-    self.versionPickerToolbar.items = @[
-        [[UIBarButtonItem alloc] initWithCustomView:self.versionTypeControl],
-        [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil],
-        [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(versionClosePicker)]
-    ];
+    self.createButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd menu:createMenu];
+
+    self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
+    self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeInteractive;
+    self.view.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.separatorColor = AmethystThemeSeparatorColor();
 }
 
-- (void)pickerView:(UIPickerView *)pickerView didSelectRow:(NSInteger)row inComponent:(NSInteger)component {
-    if (self.versionList.count == 0) {
-        self.versionTextField.text = @"";
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+
+    // Put navigation buttons back in place
+    self.navigationItem.rightBarButtonItems = @[[sidebarViewController drawAccountButton], self.createButtonItem];
+
+    // Pickup changes made in the profile editor and switching instance
+    [PLProfiles updateCurrent];
+    [self.tableView reloadData];
+    [self.navigationController performSelector:@selector(reloadProfileList)];
+}
+
+- (void)actionTogglePrefIsolation:(UISwitch *)sender {
+    if (!sender.isOn) {
+        setPrefBool(@"internal.isolated", NO);
+    }
+    toggleIsolatedPref(sender.isOn);
+}
+
+- (void)actionCreateFabricProfile {
+    FabricInstallViewController *vc = [FabricInstallViewController new];
+    [self presentNavigatedViewController:vc];
+}
+
+- (void)actionCreateForgeProfile {
+    ForgeInstallViewController *vc = [ForgeInstallViewController new];
+    [self presentNavigatedViewController:vc];
+}
+
+- (void)actionCreateModpackProfile {
+    ModpackInstallViewController *vc = [ModpackInstallViewController new];
+    [self presentNavigatedViewController:vc];
+}
+
+- (void)actionEditProfile:(NSDictionary *)profile {
+    LauncherProfileEditorViewController *vc = [LauncherProfileEditorViewController new];
+    vc.profile = profile.mutableCopy;
+    [self presentNavigatedViewController:vc];
+}
+
+- (void)presentNavigatedViewController:(UIViewController *)vc {
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
+    //nav.navigationBar.prefersLargeTitles = YES;
+    [self presentViewController:nav animated:YES completion:nil];
+}
+
+#pragma mark Table view
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    return 2;
+}
+
+- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+    switch (section) {
+        case 0: return localize(@"profile.section.instance", nil);
+        case 1: return localize(@"profile.section.profiles", nil);
+    }
+    return nil;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    switch (section) {
+        case 0: return 2;
+        case 1: return [PLProfiles.current.profiles count];
+    }
+    return 0;
+}
+
+- (void)setupInstanceCell:(UITableViewCell *) cell atRow:(NSInteger)row {
+    cell.userInteractionEnabled = !getenv("DEMO_LOCK");
+    if (row == 0) {
+        cell.imageView.image = [UIImage systemImageNamed:@"folder"];
+        cell.textLabel.text = localize(@"preference.title.game_directory", nil);
+        cell.detailTextLabel.text = getenv("DEMO_LOCK") ? @".demo" : getPrefObject(@"general.game_directory");
+    } else {
+        NSString *imageName;
+        if (@available(iOS 15.0, *)) {
+            imageName = @"folder.badge.gearshape";
+        } else {
+            imageName = @"folder.badge.gear";
+        }
+        cell.imageView.image = [UIImage systemImageNamed:imageName];
+        cell.textLabel.text = localize(@"profile.title.separate_preference", nil);
+        cell.detailTextLabel.text = localize(@"profile.detail.separate_preference", nil);
+        UISwitch *view = [UISwitch new];
+        [view setOn:getPrefBool(@"internal.isolated") animated:NO];
+        [view addTarget:self action:@selector(actionTogglePrefIsolation:) forControlEvents:UIControlEventValueChanged];
+        cell.accessoryView = view;
+    }
+}
+
+- (void)setupProfileCell:(UITableViewCell *) cell atRow:(NSInteger)row {
+    NSMutableDictionary *profile = PLProfiles.current.profiles.allValues[row];
+
+    cell.textLabel.text = profile[@"name"];
+    cell.detailTextLabel.text = profile[@"lastVersionId"];
+    cell.imageView.layer.magnificationFilter = kCAFilterNearest;
+
+    UIImage *fallbackImage = [[UIImage imageNamed:@"DefaultProfile"] _imageWithSize:CGSizeMake(40, 40)];
+    [cell.imageView setImageWithURL:[NSURL URLWithString:profile[@"icon"]] placeholderImage:fallbackImage];
+}
+
+- (UITableViewCell *)tableView:(nonnull UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSString *cellID = indexPath.section == kInstances ? @"InstanceCell" : @"ProfileCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
+    if (cell == nil) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:cellID];
+        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        cell.detailTextLabel.numberOfLines = 0;
+        cell.detailTextLabel.lineBreakMode = NSLineBreakByWordWrapping;
+        if (indexPath.section == kProfiles) {
+            cell.imageView.frame = CGRectMake(0, 0, 40, 40);
+            cell.imageView.isSizeFixed = YES;
+        }
+    } else {
+        cell.imageView.image = nil;
+        cell.userInteractionEnabled = YES;
+        cell.accessoryView = nil;
+    }
+
+    if (indexPath.section == kInstances) {
+        [self setupInstanceCell:cell atRow:indexPath.row];
+    } else {
+        [self setupProfileCell:cell atRow:indexPath.row];
+    }
+
+    cell.textLabel.enabled = cell.detailTextLabel.enabled = cell.userInteractionEnabled;
+    cell.textLabel.textColor = cell.userInteractionEnabled ? AmethystThemeTextPrimaryColor() : AmethystThemeTextSecondaryColor();
+    cell.detailTextLabel.textColor = AmethystThemeTextSecondaryColor();
+    cell.backgroundColor = AmethystThemeSurfaceColor();
+    cell.contentView.backgroundColor = AmethystThemeSurfaceColor();
+    cell.imageView.tintColor = AmethystThemeAccentColor();
+    UIView *selectedBackground = [UIView new];
+    selectedBackground.backgroundColor = AmethystThemeSelectionColor();
+    cell.selectedBackgroundView = selectedBackground;
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    [tableView deselectRowAtIndexPath:indexPath animated:NO];
+
+    if (indexPath.section == kInstances) {
+        if (indexPath.row == 0) {
+            [self.navigationController pushViewController:[LauncherPrefGameDirViewController new] animated:YES];
+        }
         return;
     }
-    self.versionSelectedAt = row;
-    self.versionTextField.text = [self pickerView:pickerView titleForRow:row forComponent:component];
+
+    [self actionEditProfile:PLProfiles.current.profiles.allValues[indexPath.row]];
 }
 
-- (NSInteger)numberOfComponentsInPickerView:(UIPickerView *)thePickerView {
-    return 1;
-}
+#pragma mark Context Menu configuration
 
-- (NSInteger)pickerView:(UIPickerView *)pickerView numberOfRowsInComponent:(NSInteger)component {
-    return self.versionList.count;
-}
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (editingStyle != UITableViewCellEditingStyleDelete) return;
 
-- (NSString *)pickerView:(UIPickerView *)pickerView titleForRow:(NSInteger)row forComponent:(NSInteger)component {
-    if (self.versionList.count <= row) return nil;
-    NSObject *object = self.versionList[row];
-    if ([object isKindOfClass:[NSString class]]) {
-        return (NSString*) object;
-    } else {
-        return [object valueForKey:@"id"];
-    }
-}
-
-- (void)versionClosePicker {
-    [self.versionTextField endEditing:YES];
-    [self pickerView:self.versionPickerView didSelectRow:[self.versionPickerView selectedRowInComponent:0] inComponent:0];
-}
-
-- (void)changeVersionType:(UISegmentedControl *)sender {
-    NSArray *newVersionList = self.versionList;
-    if (sender || !self.versionList) {
-        if (self.versionTypeControl.selectedSegmentIndex == 0) {
-            // installed
-            newVersionList = localVersionList;
+    UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+    NSString *title = localize(@"preference.title.confirm", nil);
+    // reusing the delete runtime message
+    NSString *message = [NSString stringWithFormat:localize(@"preference.title.confirm.delete_runtime", nil), cell.textLabel.text];
+    UIAlertController *confirmAlert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleActionSheet];
+    confirmAlert.popoverPresentationController.sourceView = cell;
+    confirmAlert.popoverPresentationController.sourceRect = cell.bounds;
+    UIAlertAction *ok = [UIAlertAction actionWithTitle:localize(@"OK", nil) style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
+        [PLProfiles.current.profiles removeObjectForKey:cell.textLabel.text];
+        if ([PLProfiles.current.selectedProfileName isEqualToString:cell.textLabel.text]) {
+            // The one being deleted is the selected one, switch to the random one now
+            PLProfiles.current.selectedProfileName = PLProfiles.current.profiles.allKeys[0];
+            [self.navigationController performSelector:@selector(reloadProfileList)];
         } else {
-            NSString *type = @[@"installed", @"release", @"snapshot", @"old_beta", @"old_alpha"][self.versionTypeControl.selectedSegmentIndex];
-            newVersionList = [remoteVersionList filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"(type == %@)", type]];
+            [PLProfiles.current save];
         }
-    }
+        [tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationAutomatic];
+    }];
+    UIAlertAction *cancel = [UIAlertAction actionWithTitle:localize(@"Cancel", nil) style:UIAlertActionStyleCancel handler:nil];
+    [confirmAlert addAction:cancel];
+    [confirmAlert addAction:ok];
+    [self presentViewController:confirmAlert animated:YES completion:nil];
+}
 
-    if (self.versionSelectedAt == -1) {
-        NSDictionary *selected = (id)[MinecraftResourceUtils findVersion:self.versionTextField.text inList:newVersionList];
-        self.versionSelectedAt = [newVersionList indexOfObject:selected];
-    } else {
-        // Find the most matching version for this type
-        NSObject *lastSelected = nil; 
-        if (self.versionList.count > self.versionSelectedAt) {
-            lastSelected = self.versionList[self.versionSelectedAt];
-        }
-        if (lastSelected != nil) {
-            NSObject *nearest = [MinecraftResourceUtils findNearestVersion:lastSelected expectedType:self.versionTypeControl.selectedSegmentIndex];
-            if (nearest != nil) {
-                self.versionSelectedAt = [newVersionList indexOfObject:(id)nearest];
-            }
-        }
-        lastSelected = nil;
-        // Get back the currently selected in case none matching version found
-        self.versionSelectedAt = MIN(abs(self.versionSelectedAt), newVersionList.count - 1);
+- (UITableViewCellEditingStyle)tableView:(UITableView *)tableView editingStyleForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    if (indexPath.section == kInstances || PLProfiles.current.profiles.count==1) {
+        return UITableViewCellEditingStyleNone;
     }
-
-    self.versionList = newVersionList;
-    [self.versionPickerView reloadAllComponents];
-    if (self.versionSelectedAt != -1) {
-        [self.versionPickerView selectRow:self.versionSelectedAt inComponent:0 animated:NO];
-        [self pickerView:self.versionPickerView didSelectRow:self.versionSelectedAt inComponent:0];
-    }
+    return UITableViewCellEditingStyleDelete;
 }
 
 @end
