@@ -196,6 +196,7 @@ target_link_libraries(AngelAuraAmethyst
   "-framework AVFoundation"
   "-framework CAltKit"
   "-framework CoreFoundation"
+  "-framework Foundation"
   "-framework CoreGraphics"
   "-framework CoreImage"
   "-framework CoreMotion"
