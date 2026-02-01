@@ -185,9 +185,12 @@
 "preference.pick.theme_mode.dark" = "Dark";
 "preference.title.theme_background_image" = "Background image";
 "preference.detail.theme_background_image" = "Choose an image to display behind the launcher UI.";
+"preference.title.theme_background_video" = "Background video";
+"preference.detail.theme_background_video" = "Choose a video to display behind the launcher UI.";
 "preference.title.theme_background_clear" = "Clear background image";
+"preference.title.theme_background_clear_video" = "Clear background video";
 "preference.title.theme_background_opacity" = "Background opacity (%)";
-"preference.detail.theme_background_opacity" = "Adjust transparency to reveal the background image.";
+"preference.detail.theme_background_opacity" = "Adjust transparency to reveal the background image or video.";
 "preference.title.menu_compact" = "Compact menu";
 "preference.detail.menu_compact" = "Reduce spacing in the sidebar menu.";
 "preference.title.menu_show_icons" = "Show menu icons";
