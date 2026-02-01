@@ -637,7 +637,6 @@
               @"hasDetail": @YES,
               @"icon": @"rotate.right",
               @"type": self.typePickField,
-              @"enableCondition": hasThemeImage,
               @"pickKeys": @[
                   @"portrait",
                   @"landscape",
@@ -659,7 +658,6 @@
               @"hasDetail": @YES,
               @"icon": @"rotate.right",
               @"type": self.typePickField,
-              @"enableCondition": hasThemeImage,
               @"pickKeys": @[
                   @"portrait",
                   @"landscape",
