@@ -383,6 +383,16 @@
 "preference.pick.theme_background_scale.fill" = "Phủ kín";
 "preference.pick.theme_background_scale.fit" = "Vừa khít";
 "preference.pick.theme_background_scale.center" = "Giữa";
+"preference.title.theme_background_rotation" = "Xoay ảnh nền";
+"preference.detail.theme_background_rotation" = "Xoay ảnh nền theo hướng bạn chọn.";
+"preference.title.theme_background_rotation_portrait" = "Xoay ảnh nền (dọc)";
+"preference.detail.theme_background_rotation_portrait" = "Xoay ảnh nền cho màn hình dọc.";
+"preference.title.theme_background_rotation_landscape" = "Xoay ảnh nền (ngang)";
+"preference.detail.theme_background_rotation_landscape" = "Xoay ảnh nền cho màn hình ngang.";
+"preference.pick.theme_background_rotation.portrait" = "Dọc";
+"preference.pick.theme_background_rotation.landscape" = "Ngang (tự động)";
+"preference.pick.theme_background_rotation.left" = "Trái";
+"preference.pick.theme_background_rotation.right" = "Phải";
 "preference.title.menu_show_profiles" = "Hiện tab Hồ sơ";
 "preference.detail.menu_show_profiles" = "Hiện mục Hồ sơ trên sidebar.";
 "preference.title.menu_show_settings" = "Hiện tab Cài đặt";
