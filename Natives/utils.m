@@ -220,6 +220,35 @@ static NSString *AmethystThemeBackgroundVideoPathForWindow(UIWindow *window) {
     return hasPortrait ? portrait : (hasLandscape ? landscape : nil);
 }
 
+static BOOL AmethystThemeShouldRotateImageForLandscape(UIWindow *window, NSString *imagePath, UIImage *image) {
+    if (!window || !imagePath || !image) {
+        return NO;
+    }
+    if (window.bounds.size.width <= window.bounds.size.height) {
+        return NO;
+    }
+    NSString *portrait = getPrefObject(@"general.theme_background_image");
+    NSString *landscape = getPrefObject(@"general.theme_background_image_landscape");
+    BOOL hasLandscape = [landscape isKindOfClass:NSString.class] && landscape.length > 0;
+    if (hasLandscape) {
+        return NO;
+    }
+    if (![portrait isKindOfClass:NSString.class] || portrait.length == 0) {
+        return NO;
+    }
+    if (![imagePath isEqualToString:portrait]) {
+        return NO;
+    }
+    return image.size.height >= image.size.width;
+}
+
+static UIImage *AmethystThemeRotatedImageForLandscape(UIImage *image) {
+    if (!image) {
+        return nil;
+    }
+    return [UIImage imageWithCGImage:image.CGImage scale:image.scale orientation:UIImageOrientationRight];
+}
+
 static CGFloat AmethystThemeBackgroundOpacity(void) {
     CGFloat alpha = 1.0;
     id value = getPrefObject(@"general.theme_background_opacity");
@@ -741,7 +770,13 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
     if (imagePath) {
         UIImage *image = [UIImage imageWithContentsOfFile:imagePath];
         if (image) {
+            UIViewContentMode imageContentMode = AmethystThemeBackgroundImageContentMode();
+            if (AmethystThemeShouldRotateImageForLandscape(window, imagePath, image)) {
+                image = AmethystThemeRotatedImageForLandscape(image);
+                imageContentMode = UIViewContentModeScaleAspectFill;
+            }
             backgroundView.image = image;
+            backgroundView.contentMode = imageContentMode;
             backgroundView.hidden = NO;
             [window sendSubviewToBack:backgroundView];
         } else {
