@@ -96,7 +96,7 @@
             @"theme_background_scale": @"fit",
             @"theme_background_rotation": @"portrait",
             @"theme_background_rotation_portrait": @"portrait",
-            @"theme_background_rotation_landscape": @"landscape",
+            @"theme_background_rotation_landscape": @"portrait",
             @"theme_background_video_mute": @YES,
             @"theme_background_video_loop": @YES,
             @"menu_compact": @NO,
