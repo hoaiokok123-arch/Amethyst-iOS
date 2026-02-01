@@ -234,6 +234,16 @@
 "preference.pick.theme_background_scale.fill" = "Fill";
 "preference.pick.theme_background_scale.fit" = "Fit";
 "preference.pick.theme_background_scale.center" = "Center";
+"preference.title.theme_background_rotation" = "Background rotation";
+"preference.detail.theme_background_rotation" = "Rotate the background image.";
+"preference.title.theme_background_rotation_portrait" = "Background rotation (portrait)";
+"preference.detail.theme_background_rotation_portrait" = "Rotate the portrait background image.";
+"preference.title.theme_background_rotation_landscape" = "Background rotation (landscape)";
+"preference.detail.theme_background_rotation_landscape" = "Rotate the landscape background image.";
+"preference.pick.theme_background_rotation.portrait" = "Portrait";
+"preference.pick.theme_background_rotation.landscape" = "Landscape (auto)";
+"preference.pick.theme_background_rotation.left" = "Left";
+"preference.pick.theme_background_rotation.right" = "Right";
 "preference.title.menu_compact" = "Compact menu";
 "preference.detail.menu_compact" = "Reduce spacing in the sidebar menu.";
 "preference.title.menu_show_icons" = "Show menu icons";
