@@ -209,6 +209,8 @@
 "preference.detail.theme_button_border_width" = "Adjust the outline thickness when enabled.";
 "preference.title.theme_background_image" = "Background image";
 "preference.detail.theme_background_image" = "Choose an image to display behind the launcher UI.";
+"preference.title.theme_background_image_landscape" = "Background image (landscape)";
+"preference.detail.theme_background_image_landscape" = "Choose an image to display behind the launcher UI in landscape.";
 "preference.title.theme_background_video" = "Background video (portrait)";
 "preference.detail.theme_background_video" = "Choose a video to display behind the launcher UI in portrait.";
 "preference.title.theme_background_video_landscape" = "Background video (landscape)";
@@ -218,6 +220,7 @@
 "preference.title.theme_background_video_loop" = "Loop background video";
 "preference.detail.theme_background_video_loop" = "Repeat the background video continuously.";
 "preference.title.theme_background_clear" = "Clear background image";
+"preference.title.theme_background_clear_landscape" = "Clear landscape image";
 "preference.title.theme_background_clear_video" = "Clear portrait video";
 "preference.title.theme_background_clear_video_landscape" = "Clear landscape video";
 "preference.title.theme_background_opacity" = "Background opacity (%)";
