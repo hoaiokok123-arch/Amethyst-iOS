@@ -7,6 +7,7 @@
 #import "LauncherMenuViewController.h"
 #import "LauncherPreferences.h"
 #import "LauncherPreferencesViewController.h"
+#import "LauncherSplitViewController.h"
 #import "LauncherPrefContCfgViewController.h"
 #import "LauncherPrefManageJREViewController.h"
 #import "UIKit+hook.h"
@@ -69,6 +70,17 @@
     };
     void(^applyThemeChanges)(void) = ^void() {
         [weakSelf applyThemeChangesAndReload];
+        if (sidebarViewController) {
+            [sidebarViewController applyMenuPreferences];
+        }
+    };
+    void(^applyMenuChanges)(void) = ^void() {
+        if (sidebarViewController) {
+            [sidebarViewController applyMenuPreferences];
+        }
+        if ([weakSelf.splitViewController isKindOfClass:LauncherSplitViewController.class]) {
+            [(LauncherSplitViewController *)weakSelf.splitViewController applySidebarPreferences];
+        }
     };
     BOOL(^hasThemeImage)(void) = ^BOOL() {
         NSString *path = getPrefObject(@"general.theme_background_image");
@@ -138,61 +150,91 @@
               @"hasDetail": @YES,
               @"icon": @"sidebar.leading",
               @"type": self.typeSwitch,
-              @"enableCondition": whenNotInGame
+              @"enableCondition": whenNotInGame,
+              @"action": ^(BOOL enabled){
+                  applyMenuChanges();
+              }
             },
             @{@"key": @"menu_compact",
               @"hasDetail": @YES,
               @"icon": @"list.bullet.rectangle",
               @"type": self.typeSwitch,
-              @"enableCondition": whenNotInGame
+              @"enableCondition": whenNotInGame,
+              @"action": ^(BOOL enabled){
+                  applyMenuChanges();
+              }
             },
             @{@"key": @"menu_show_icons",
               @"hasDetail": @YES,
               @"icon": @"square.grid.2x2",
               @"type": self.typeSwitch,
-              @"enableCondition": whenNotInGame
+              @"enableCondition": whenNotInGame,
+              @"action": ^(BOOL enabled){
+                  applyMenuChanges();
+              }
             },
             @{@"key": @"menu_show_account",
               @"hasDetail": @YES,
               @"icon": @"person.crop.circle",
               @"type": self.typeSwitch,
-              @"enableCondition": whenNotInGame
+              @"enableCondition": whenNotInGame,
+              @"action": ^(BOOL enabled){
+                  applyMenuChanges();
+              }
             },
             @{@"key": @"menu_show_news",
               @"hasDetail": @YES,
               @"icon": @"newspaper",
               @"type": self.typeSwitch,
-              @"enableCondition": whenNotInGame
+              @"enableCondition": whenNotInGame,
+              @"action": ^(BOOL enabled){
+                  applyMenuChanges();
+              }
             },
             @{@"key": @"menu_show_profiles",
               @"hasDetail": @YES,
               @"icon": @"person.2",
               @"type": self.typeSwitch,
-              @"enableCondition": whenNotInGame
+              @"enableCondition": whenNotInGame,
+              @"action": ^(BOOL enabled){
+                  applyMenuChanges();
+              }
             },
             @{@"key": @"menu_show_settings",
               @"hasDetail": @YES,
               @"icon": @"gearshape",
               @"type": self.typeSwitch,
-              @"enableCondition": whenNotInGame
+              @"enableCondition": whenNotInGame,
+              @"action": ^(BOOL enabled){
+                  applyMenuChanges();
+              }
             },
             @{@"key": @"menu_show_custom_controls",
               @"hasDetail": @YES,
               @"icon": @"hand.tap",
               @"type": self.typeSwitch,
-              @"enableCondition": whenNotInGame
+              @"enableCondition": whenNotInGame,
+              @"action": ^(BOOL enabled){
+                  applyMenuChanges();
+              }
             },
             @{@"key": @"menu_show_mod_installer",
               @"hasDetail": @YES,
               @"icon": @"shippingbox",
               @"type": self.typeSwitch,
-              @"enableCondition": whenNotInGame
+              @"enableCondition": whenNotInGame,
+              @"action": ^(BOOL enabled){
+                  applyMenuChanges();
+              }
             },
             @{@"key": @"menu_show_send_logs",
               @"hasDetail": @YES,
               @"icon": @"square.and.arrow.up",
               @"type": self.typeSwitch,
-              @"enableCondition": whenNotInGame
+              @"enableCondition": whenNotInGame,
+              @"action": ^(BOOL enabled){
+                  applyMenuChanges();
+              }
             },
             @{@"key": @"reduce_motion",
               @"hasDetail": @YES,
@@ -269,12 +311,18 @@
                   @"amethyst",
                   @"midnight",
                   @"warm",
+                  @"ocean",
+                  @"forest",
+                  @"sakura",
                   @"oled"
               ],
               @"pickList": @[
                   localize(@"preference.pick.theme_palette.amethyst", nil),
                   localize(@"preference.pick.theme_palette.midnight", nil),
                   localize(@"preference.pick.theme_palette.warm", nil),
+                  localize(@"preference.pick.theme_palette.ocean", nil),
+                  localize(@"preference.pick.theme_palette.forest", nil),
+                  localize(@"preference.pick.theme_palette.sakura", nil),
                   localize(@"preference.pick.theme_palette.oled", nil)
               ],
               @"action": ^(NSString *value){
@@ -289,21 +337,31 @@
               @"pickKeys": @[
                   @"teal",
                   @"blue",
+                  @"indigo",
+                  @"cyan",
                   @"purple",
                   @"pink",
+                  @"rose",
                   @"orange",
+                  @"yellow",
                   @"red",
                   @"green",
+                  @"lime",
                   @"mono"
               ],
               @"pickList": @[
                   localize(@"preference.pick.theme_accent.teal", nil),
                   localize(@"preference.pick.theme_accent.blue", nil),
+                  localize(@"preference.pick.theme_accent.indigo", nil),
+                  localize(@"preference.pick.theme_accent.cyan", nil),
                   localize(@"preference.pick.theme_accent.purple", nil),
                   localize(@"preference.pick.theme_accent.pink", nil),
+                  localize(@"preference.pick.theme_accent.rose", nil),
                   localize(@"preference.pick.theme_accent.orange", nil),
+                  localize(@"preference.pick.theme_accent.yellow", nil),
                   localize(@"preference.pick.theme_accent.red", nil),
                   localize(@"preference.pick.theme_accent.green", nil),
+                  localize(@"preference.pick.theme_accent.lime", nil),
                   localize(@"preference.pick.theme_accent.mono", nil)
               ],
               @"action": ^(NSString *value){
@@ -355,6 +413,7 @@
               @"hasDetail": @YES,
               @"icon": @"textformat.size",
               @"type": self.typeSlider,
+              @"continuous": @NO,
               @"min": @(0),
               @"max": @(100),
               @"action": ^(int value){
@@ -366,6 +425,7 @@
               @"hasDetail": @YES,
               @"icon": @"square.opacity",
               @"type": self.typeSlider,
+              @"continuous": @NO,
               @"min": @(0),
               @"max": @(100),
               @"action": ^(int value){
@@ -386,6 +446,7 @@
               @"hasDetail": @YES,
               @"icon": @"square",
               @"type": self.typeSlider,
+              @"continuous": @NO,
               @"min": @(0),
               @"max": @(30),
               @"action": ^(int value){
@@ -397,6 +458,7 @@
               @"hasDetail": @YES,
               @"icon": @"line.3.horizontal.decrease",
               @"type": self.typeSlider,
+              @"continuous": @NO,
               @"min": @(0),
               @"max": @(6),
               @"action": ^(int value){
@@ -489,6 +551,7 @@
               @"icon": @"slider.horizontal.3",
               @"type": self.typeSlider,
               @"enableCondition": hasThemeMedia,
+              @"continuous": @NO,
               @"min": @(0),
               @"max": @(100),
               @"action": ^(int value){
@@ -501,6 +564,7 @@
               @"icon": @"drop",
               @"type": self.typeSlider,
               @"enableCondition": hasThemeMedia,
+              @"continuous": @NO,
               @"min": @(0),
               @"max": @(100),
               @"action": ^(int value){
@@ -513,9 +577,30 @@
               @"icon": @"moon.fill",
               @"type": self.typeSlider,
               @"enableCondition": hasThemeMedia,
+              @"continuous": @NO,
               @"min": @(0),
               @"max": @(100),
               @"action": ^(int value){
+                  applyThemeChanges();
+              }
+            },
+            @{@"key": @"theme_background_scale",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"arrow.up.left.and.arrow.down.right",
+              @"type": self.typePickField,
+              @"enableCondition": hasThemeMedia,
+              @"pickKeys": @[
+                  @"fill",
+                  @"fit",
+                  @"center"
+              ],
+              @"pickList": @[
+                  localize(@"preference.pick.theme_background_scale.fill", nil),
+                  localize(@"preference.pick.theme_background_scale.fit", nil),
+                  localize(@"preference.pick.theme_background_scale.center", nil)
+              ],
+              @"action": ^(NSString *value){
                   applyThemeChanges();
               }
             }
