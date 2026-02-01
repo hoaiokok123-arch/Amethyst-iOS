@@ -1,6 +1,4 @@
-#import <UIKit/UIKit.h>
-#import "PLPrefTableViewController.h"
+#import "LauncherProfileEditorViewControllerBase.h"
 
-@interface LauncherProfileEditorViewController : PLPrefTableViewController
-@property(nonatomic) NSMutableDictionary* profile;
+@interface LauncherProfileEditorViewController : LauncherProfileEditorViewControllerBase
 @end
