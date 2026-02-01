@@ -80,6 +80,17 @@
     [self.tableView reloadRowsAtIndexPaths:indexPaths withRowAnimation:UITableViewRowAnimationNone];
 }
 
+- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
+    [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
+    [coordinator animateAlongsideTransition:nil completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        self.view.backgroundColor = AmethystThemeBackgroundColor();
+        self.tableView.backgroundColor = AmethystThemeBackgroundColor();
+        self.tableView.separatorColor = AmethystThemeSeparatorColor();
+        self.tableView.tintColor = AmethystThemeAccentColor();
+        [self.tableView reloadData];
+    }];
+}
+
 #pragma mark UITableView
 
 - (void)toggleDetailVisibility {
