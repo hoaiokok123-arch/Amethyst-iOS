@@ -338,9 +338,8 @@ static GameSurfaceView* pojavWindow;
 
     // Update gestures state
     self.slideableHotbar = getPrefBool(@"control.slideable_hotbar");
-    BOOL mouseGestureMaster = getPrefBool(@"control.gesture_mouse");
-    self.enableMouseGestures = mouseGestureMaster && getPrefBool(@"control.gesture_mouse_tap_hold");
-    self.enableMouseScrollGestures = mouseGestureMaster && getPrefBool(@"control.gesture_mouse_scroll");
+    self.enableMouseGestures = getPrefBool(@"control.gesture_mouse_tap_hold");
+    self.enableMouseScrollGestures = getPrefBool(@"control.gesture_mouse_scroll");
     self.enableHotbarGestures = getPrefBool(@"control.gesture_hotbar");
     self.shouldTriggerHaptic = !getPrefBool(@"control.disable_haptics");
 
