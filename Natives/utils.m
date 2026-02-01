@@ -173,12 +173,27 @@ CGFloat AmethystThemeButtonBorderWidth(void) {
     return width / UIScreen.mainScreen.scale;
 }
 
-static NSString *AmethystThemeBackgroundImagePath(void) {
-    id value = getPrefObject(@"general.theme_background_image");
-    if (![value isKindOfClass:NSString.class] || [value length] == 0) {
+static BOOL AmethystThemeHasBackgroundImage(void) {
+    id portrait = getPrefObject(@"general.theme_background_image");
+    id landscape = getPrefObject(@"general.theme_background_image_landscape");
+    BOOL hasPortrait = [portrait isKindOfClass:NSString.class] && [portrait length] > 0;
+    BOOL hasLandscape = [landscape isKindOfClass:NSString.class] && [landscape length] > 0;
+    return hasPortrait || hasLandscape;
+}
+
+static NSString *AmethystThemeBackgroundImagePathForWindow(UIWindow *window) {
+    NSString *portrait = getPrefObject(@"general.theme_background_image");
+    NSString *landscape = getPrefObject(@"general.theme_background_image_landscape");
+    BOOL hasPortrait = [portrait isKindOfClass:NSString.class] && portrait.length > 0;
+    BOOL hasLandscape = [landscape isKindOfClass:NSString.class] && landscape.length > 0;
+    if (!hasPortrait && !hasLandscape) {
         return nil;
     }
-    return value;
+    BOOL isLandscape = window.bounds.size.width > window.bounds.size.height;
+    if (isLandscape) {
+        return hasLandscape ? landscape : (hasPortrait ? portrait : nil);
+    }
+    return hasPortrait ? portrait : (hasLandscape ? landscape : nil);
 }
 
 static BOOL AmethystThemeHasBackgroundVideo(void) {
@@ -212,7 +227,7 @@ static CGFloat AmethystThemeBackgroundOpacity(void) {
         alpha = [value doubleValue] / 100.0;
     }
     alpha = clamp(alpha, 0.0, 1.0);
-    if (!AmethystThemeBackgroundImagePath() && !AmethystThemeHasBackgroundVideo()) {
+    if (!AmethystThemeHasBackgroundImage() && !AmethystThemeHasBackgroundVideo()) {
         return 1.0;
     }
     return alpha;
@@ -225,7 +240,7 @@ static CGFloat AmethystThemeBackgroundBlurOpacity(void) {
         alpha = [value doubleValue] / 100.0;
     }
     alpha = clamp(alpha, 0.0, 1.0);
-    if (!AmethystThemeBackgroundImagePath() && !AmethystThemeHasBackgroundVideo()) {
+    if (!AmethystThemeHasBackgroundImage() && !AmethystThemeHasBackgroundVideo()) {
         return 0.0;
     }
     return alpha;
@@ -238,7 +253,7 @@ static CGFloat AmethystThemeBackgroundDimOpacity(void) {
         alpha = [value doubleValue] / 100.0;
     }
     alpha = clamp(alpha, 0.0, 1.0);
-    if (!AmethystThemeBackgroundImagePath() && !AmethystThemeHasBackgroundVideo()) {
+    if (!AmethystThemeHasBackgroundImage() && !AmethystThemeHasBackgroundVideo()) {
         return 0.0;
     }
     return alpha;
@@ -722,7 +737,7 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
         objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoLoopKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
 
-    NSString *imagePath = hasVideo ? nil : AmethystThemeBackgroundImagePath();
+    NSString *imagePath = hasVideo ? nil : AmethystThemeBackgroundImagePathForWindow(window);
     if (imagePath) {
         UIImage *image = [UIImage imageWithContentsOfFile:imagePath];
         if (image) {
