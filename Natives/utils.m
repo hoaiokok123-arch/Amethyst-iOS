@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <objc/runtime.h>
 
 #include "utils.h"
 
@@ -114,6 +115,27 @@ static const AmethystThemePalette *AmethystCurrentThemePalette(void) {
     return AmethystThemePaletteForKey(paletteKey);
 }
 
+static NSString *AmethystThemeBackgroundImagePath(void) {
+    id value = getPrefObject(@"general.theme_background_image");
+    if (![value isKindOfClass:NSString.class] || [value length] == 0) {
+        return nil;
+    }
+    return value;
+}
+
+static CGFloat AmethystThemeBackgroundOpacity(void) {
+    CGFloat alpha = 1.0;
+    id value = getPrefObject(@"general.theme_background_opacity");
+    if ([value respondsToSelector:@selector(doubleValue)]) {
+        alpha = [value doubleValue] / 100.0;
+    }
+    alpha = clamp(alpha, 0.0, 1.0);
+    if (!AmethystThemeBackgroundImagePath()) {
+        return 1.0;
+    }
+    return alpha;
+}
+
 BOOL getEntitlementValue(NSString *key) {
     void *secTask = SecTaskCreateFromSelf(NULL);
     CFTypeRef value = SecTaskCopyValueForEntitlement(SecTaskCreateFromSelf(NULL), key, nil);
@@ -214,17 +236,17 @@ NSString* localize(NSString* key, NSString* comment) {
 
 UIColor* AmethystThemeBackgroundColor(void) {
     const AmethystThemePalette *palette = AmethystCurrentThemePalette();
-    return AmethystDynamicColor(palette->lightBackground, palette->darkBackground, 1.0);
+    return AmethystDynamicColor(palette->lightBackground, palette->darkBackground, AmethystThemeBackgroundOpacity());
 }
 
 UIColor* AmethystThemeSurfaceColor(void) {
     const AmethystThemePalette *palette = AmethystCurrentThemePalette();
-    return AmethystDynamicColor(palette->lightSurface, palette->darkSurface, 1.0);
+    return AmethystDynamicColor(palette->lightSurface, palette->darkSurface, AmethystThemeBackgroundOpacity());
 }
 
 UIColor* AmethystThemeSurfaceElevatedColor(void) {
     const AmethystThemePalette *palette = AmethystCurrentThemePalette();
-    return AmethystDynamicColor(palette->lightSurfaceElevated, palette->darkSurfaceElevated, 1.0);
+    return AmethystDynamicColor(palette->lightSurfaceElevated, palette->darkSurfaceElevated, AmethystThemeBackgroundOpacity());
 }
 
 UIColor* AmethystThemeAccentColor(void) {
@@ -247,12 +269,12 @@ UIColor* AmethystThemeTextSecondaryColor(void) {
 
 UIColor* AmethystThemeSeparatorColor(void) {
     const AmethystThemePalette *palette = AmethystCurrentThemePalette();
-    return AmethystDynamicColor(palette->lightSeparator, palette->darkSeparator, 1.0);
+    return AmethystDynamicColor(palette->lightSeparator, palette->darkSeparator, AmethystThemeBackgroundOpacity());
 }
 
 UIColor* AmethystThemeSelectionColor(void) {
     const AmethystThemePalette *palette = AmethystCurrentThemePalette();
-    return AmethystDynamicColor(palette->lightSelection, palette->darkSelection, 1.0);
+    return AmethystDynamicColor(palette->lightSelection, palette->darkSelection, AmethystThemeBackgroundOpacity());
 }
 
 static UIUserInterfaceStyle AmethystPreferredInterfaceStyle(void) {
@@ -273,10 +295,15 @@ void AmethystApplyThemeAppearance(void) {
     UIColor *surface = AmethystThemeSurfaceColor();
     UIColor *text = AmethystThemeTextPrimaryColor();
     UIColor *separator = AmethystThemeSeparatorColor();
+    CGFloat backgroundAlpha = AmethystThemeBackgroundOpacity();
 
     if (@available(iOS 13.0, *)) {
         UINavigationBarAppearance *navAppearance = [[UINavigationBarAppearance alloc] init];
-        [navAppearance configureWithOpaqueBackground];
+        if (backgroundAlpha < 1.0) {
+            [navAppearance configureWithTransparentBackground];
+        } else {
+            [navAppearance configureWithOpaqueBackground];
+        }
         navAppearance.backgroundColor = surface;
         navAppearance.titleTextAttributes = @{NSForegroundColorAttributeName: text};
         navAppearance.largeTitleTextAttributes = @{NSForegroundColorAttributeName: text};
@@ -289,7 +316,11 @@ void AmethystApplyThemeAppearance(void) {
         navProxy.tintColor = accent;
 
         UIToolbarAppearance *toolbarAppearance = [[UIToolbarAppearance alloc] init];
-        [toolbarAppearance configureWithOpaqueBackground];
+        if (backgroundAlpha < 1.0) {
+            [toolbarAppearance configureWithTransparentBackground];
+        } else {
+            [toolbarAppearance configureWithOpaqueBackground];
+        }
         toolbarAppearance.backgroundColor = surface;
         toolbarAppearance.shadowColor = separator;
 
@@ -326,10 +357,39 @@ void AmethystApplyThemeAppearance(void) {
     }
 }
 
+static char kAmethystThemeBackgroundImageViewKey;
+
+static UIImageView *AmethystThemeBackgroundImageView(UIWindow *window) {
+    UIImageView *view = objc_getAssociatedObject(window, &kAmethystThemeBackgroundImageViewKey);
+    if (!view) {
+        view = [[UIImageView alloc] initWithFrame:window.bounds];
+        view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        view.contentMode = UIViewContentModeScaleAspectFill;
+        view.userInteractionEnabled = NO;
+        view.clipsToBounds = YES;
+        [window insertSubview:view atIndex:0];
+        objc_setAssociatedObject(window, &kAmethystThemeBackgroundImageViewKey, view, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return view;
+}
+
 void AmethystApplyThemeToWindow(UIWindow *window) {
     if (!window) return;
     if (@available(iOS 13.0, *)) {
         window.overrideUserInterfaceStyle = AmethystPreferredInterfaceStyle();
+    }
+    NSString *imagePath = AmethystThemeBackgroundImagePath();
+    UIImageView *backgroundView = AmethystThemeBackgroundImageView(window);
+    if (imagePath) {
+        UIImage *image = [UIImage imageWithContentsOfFile:imagePath];
+        if (image) {
+            backgroundView.image = image;
+            backgroundView.hidden = NO;
+        } else {
+            backgroundView.hidden = YES;
+        }
+    } else {
+        backgroundView.hidden = YES;
     }
     window.tintColor = AmethystThemeAccentColor();
     window.backgroundColor = AmethystThemeBackgroundColor();
