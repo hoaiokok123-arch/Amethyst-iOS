@@ -1,3 +1,4 @@
+#import <AVFoundation/AVFoundation.h>
 #import <SafariServices/SafariServices.h>
 
 #import "LauncherPreferences.h"
@@ -123,6 +124,14 @@ static NSString *AmethystThemeBackgroundImagePath(void) {
     return value;
 }
 
+static NSString *AmethystThemeBackgroundVideoPath(void) {
+    id value = getPrefObject(@"general.theme_background_video");
+    if (![value isKindOfClass:NSString.class] || [value length] == 0) {
+        return nil;
+    }
+    return value;
+}
+
 static CGFloat AmethystThemeBackgroundOpacity(void) {
     CGFloat alpha = 1.0;
     id value = getPrefObject(@"general.theme_background_opacity");
@@ -130,7 +139,7 @@ static CGFloat AmethystThemeBackgroundOpacity(void) {
         alpha = [value doubleValue] / 100.0;
     }
     alpha = clamp(alpha, 0.0, 1.0);
-    if (!AmethystThemeBackgroundImagePath()) {
+    if (!AmethystThemeBackgroundImagePath() && !AmethystThemeBackgroundVideoPath()) {
         return 1.0;
     }
     return alpha;
@@ -357,7 +366,37 @@ void AmethystApplyThemeAppearance(void) {
     }
 }
 
+@interface AmethystBackgroundVideoView : UIView
+@end
+
+@implementation AmethystBackgroundVideoView
++ (Class)layerClass {
+    return [AVPlayerLayer class];
+}
+@end
+
+static char kAmethystThemeBackgroundVideoViewKey;
+static char kAmethystThemeBackgroundVideoPlayerKey;
+static char kAmethystThemeBackgroundVideoLooperKey;
+static char kAmethystThemeBackgroundVideoPathKey;
 static char kAmethystThemeBackgroundImageViewKey;
+
+static AmethystBackgroundVideoView *AmethystThemeBackgroundVideoView(UIWindow *window) {
+    AmethystBackgroundVideoView *view = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoViewKey);
+    if (!view) {
+        view = [[AmethystBackgroundVideoView alloc] initWithFrame:window.bounds];
+        view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        view.contentMode = UIViewContentModeScaleAspectFill;
+        view.userInteractionEnabled = NO;
+        view.clipsToBounds = YES;
+        view.hidden = YES;
+        AVPlayerLayer *layer = (AVPlayerLayer *)view.layer;
+        layer.videoGravity = AVLayerVideoGravityResizeAspectFill;
+        [window insertSubview:view atIndex:0];
+        objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoViewKey, view, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return view;
+}
 
 static UIImageView *AmethystThemeBackgroundImageView(UIWindow *window) {
     UIImageView *view = objc_getAssociatedObject(window, &kAmethystThemeBackgroundImageViewKey);
@@ -367,7 +406,12 @@ static UIImageView *AmethystThemeBackgroundImageView(UIWindow *window) {
         view.contentMode = UIViewContentModeScaleAspectFill;
         view.userInteractionEnabled = NO;
         view.clipsToBounds = YES;
-        [window insertSubview:view atIndex:0];
+        UIView *videoView = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoViewKey);
+        if (videoView) {
+            [window insertSubview:view aboveSubview:videoView];
+        } else {
+            [window insertSubview:view atIndex:0];
+        }
         objc_setAssociatedObject(window, &kAmethystThemeBackgroundImageViewKey, view, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     return view;
@@ -378,13 +422,55 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
     if (@available(iOS 13.0, *)) {
         window.overrideUserInterfaceStyle = AmethystPreferredInterfaceStyle();
     }
-    NSString *imagePath = AmethystThemeBackgroundImagePath();
+    NSString *videoPath = AmethystThemeBackgroundVideoPath();
+    AmethystBackgroundVideoView *videoView = AmethystThemeBackgroundVideoView(window);
     UIImageView *backgroundView = AmethystThemeBackgroundImageView(window);
+    BOOL hasVideo = NO;
+    if (videoPath && [NSFileManager.defaultManager fileExistsAtPath:videoPath]) {
+        hasVideo = YES;
+        AVPlayerLayer *layer = (AVPlayerLayer *)videoView.layer;
+        NSString *currentPath = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoPathKey);
+        AVQueuePlayer *player = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoPlayerKey);
+        if (!currentPath || ![currentPath isEqualToString:videoPath] || !player) {
+            AVPlayerItem *item = [AVPlayerItem playerItemWithURL:[NSURL fileURLWithPath:videoPath]];
+            AVQueuePlayer *newPlayer = [AVQueuePlayer queuePlayerWithItems:@[item]];
+            newPlayer.muted = YES;
+            newPlayer.actionAtItemEnd = AVPlayerActionAtItemEndNone;
+
+            AVPlayerLooper *looper = [AVPlayerLooper playerLooperWithPlayer:newPlayer templateItem:item];
+            objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoPlayerKey, newPlayer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoLooperKey, looper, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoPathKey, videoPath, OBJC_ASSOCIATION_COPY_NONATOMIC);
+            layer.player = newPlayer;
+            [newPlayer play];
+        } else {
+            if (layer.player != player) {
+                layer.player = player;
+            }
+            [player play];
+        }
+        videoView.hidden = NO;
+        [window sendSubviewToBack:videoView];
+    } else {
+        AVPlayerLayer *layer = (AVPlayerLayer *)videoView.layer;
+        AVQueuePlayer *player = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoPlayerKey);
+        if (player) {
+            [player pause];
+        }
+        layer.player = nil;
+        videoView.hidden = YES;
+        objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoPlayerKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoLooperKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoPathKey, nil, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    }
+
+    NSString *imagePath = hasVideo ? nil : AmethystThemeBackgroundImagePath();
     if (imagePath) {
         UIImage *image = [UIImage imageWithContentsOfFile:imagePath];
         if (image) {
             backgroundView.image = image;
             backgroundView.hidden = NO;
+            [window sendSubviewToBack:backgroundView];
         } else {
             backgroundView.hidden = YES;
         }
