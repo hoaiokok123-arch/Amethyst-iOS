@@ -1,381 +1,428 @@
-/*
-  Localizable.strings
-  StringLocalization
-*/
+#import <SafariServices/SafariServices.h>
 
-"game.menu.force_close" = "Force close";
-"game.menu.confirm.force_close" = "Are you sure you want to force close?";
-"game.menu.log_output" = "Log output";
-"game.menu.custom_controls" = "Custom controls";
+#import "LauncherPreferences.h"
 
-"game.note.airplay" = "Minecraft is being displayed in AirPlay mirrored display";
+#include "jni.h"
+#include <dlfcn.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <dirent.h>
 
-"game.title.exit_code" = "Game exited with code %d";
+#include "utils.h"
 
-// The play button
-"Play" = "Play";
-"Details" = "Details";
+CFTypeRef SecTaskCopyValueForEntitlement(void* task, NSString* entitlement, CFErrorRef  _Nullable *error);
+void* SecTaskCreateFromSelf(CFAllocatorRef allocator);
 
-// Version categories
-"Installed" = "Installed";
-"Snapshot" = "Snapshot";
-"Releases" = "Releases";
-"Unstable" = "Unstable";
-"Old-beta" = "Old-beta";
-"Old-alpha" = "Old-alpha";
+static inline UIColor *AmethystColorFromHex(uint32_t hex, CGFloat alpha) {
+    CGFloat r = ((hex >> 16) & 0xFF) / 255.0;
+    CGFloat g = ((hex >> 8) & 0xFF) / 255.0;
+    CGFloat b = (hex & 0xFF) / 255.0;
+    return [UIColor colorWithRed:r green:g blue:b alpha:alpha];
+}
 
-// Custom controls
-"Copy" = "Copy";
-"Edit" = "Edit";
-"Move" = "Move";
-"Remove" = "Remove";
-"Resize" = "Resize";
-// Visibility
-"Always" = "Always";
-"In game" = "In game";
-"In menu" = "In menu";
+static UIColor *AmethystDynamicColor(uint32_t lightHex, uint32_t darkHex, CGFloat alpha) {
+    UIColor *light = AmethystColorFromHex(lightHex, alpha);
+    UIColor *dark = AmethystColorFromHex(darkHex, alpha);
+    if (@available(iOS 13.0, *)) {
+        return [UIColor colorWithDynamicProvider:^UIColor * _Nonnull(UITraitCollection * _Nonnull trait) {
+            return trait.userInterfaceStyle == UIUserInterfaceStyleDark ? dark : light;
+        }];
+    }
+    return light;
+}
 
-"custom_controls.button_edit.forward_lock" = "Forward lock";
-"custom_controls.button_edit.name" = "Name";
-"custom_controls.button_edit.size" = "Size";
-"custom_controls.button_edit.mapping" = "Mapping";
-"custom_controls.button_edit.orientation" = "Orientation";
-"custom_controls.button_edit.toggleable" = "Toggleable";
-"custom_controls.button_edit.mouse_pass" = "Mouse pass";
-"custom_controls.button_edit.swipeable" = "Swipeable";
-"custom_controls.button_edit.bg_color" = "Background color";
-"custom_controls.button_edit.stroke_width" = "Stroke width (dp)";
-"custom_controls.button_edit.stroke_color" = "Stroke color";
-"custom_controls.button_edit.corner_radius" = "Corner radius (%)";
-"custom_controls.button_edit.opacity" = "Opacity (%)";
-"custom_controls.button_edit.visibility" = "Visibility";
+typedef struct {
+    const char *key;
+    uint32_t light;
+    uint32_t dark;
+    uint32_t lightSoft;
+    uint32_t darkSoft;
+} AmethystAccentPalette;
 
-"custom_controls.button_menu.add_subbutton" = "Add sub-button";
-"custom_controls.control_menu.discard_changes" = "Discard changes";
-"custom_controls.control_menu.exit" = "Exit";
-"custom_controls.control_menu.exit.warn" = "You are about to exit without saving changes.";
-"custom_controls.control_menu.save" = "Save";
-"custom_controls.control_menu.save.error.json" = "JSON error";
-"custom_controls.control_menu.save.error.write" = "Error saving file";
-"custom_controls.control_menu.load" = "Load";
-"custom_controls.control_menu.make_default" = "Make default";
-"custom_controls.control_menu.safe_area" = "Safe area";
-"custom_controls.control_menu.add_button" = "Add button";
-"custom_controls.control_menu.add_drawer" = "Add drawer";
-"custom_controls.control_menu.add_joystick" = "Add joystick";
-"custom_controls.error.incompatible" = "This control version (code %d) is not implemented in this launcher build.";
-"custom_controls.hint" = "Long-press anywhere on screen for more options";
+static const AmethystAccentPalette kAmethystAccentPalettes[] = {
+    {"teal", 0x1F9E93, 0x39D3BB, 0xD6F3EE, 0x163333},
+    {"blue", 0x2F6BFF, 0x6EA1FF, 0xD9E6FF, 0x1A2A4A},
+    {"purple", 0x7A4DFF, 0xB18CFF, 0xE6DBFF, 0x2A2045},
+    {"pink", 0xE85CAB, 0xFF8FD1, 0xFDE0F1, 0x3C2033},
+    {"orange", 0xF28C28, 0xFFB068, 0xFFE9D1, 0x3B2A1A},
+    {"red", 0xE23C3C, 0xFF7B7B, 0xFADADA, 0x3C1E1E},
+    {"green", 0x2FA24A, 0x6EE087, 0xDDF6E3, 0x1D3A25},
+    {"mono", 0x58606A, 0xC0CAD4, 0xE6EAEE, 0x2A323A}
+};
 
-"init.migrateDir" = "The Amethyst data directory is now %@. All of your existing data has been moved to the new location.";
+static const AmethystAccentPalette *AmethystAccentPaletteForKey(NSString *key) {
+    if (![key isKindOfClass:NSString.class] || key.length == 0) {
+        return &kAmethystAccentPalettes[0];
+    }
+    for (size_t i = 0; i < sizeof(kAmethystAccentPalettes) / sizeof(kAmethystAccentPalettes[0]); i++) {
+        if ([key isEqualToString:@(kAmethystAccentPalettes[i].key)]) {
+            return &kAmethystAccentPalettes[i];
+        }
+    }
+    return &kAmethystAccentPalettes[0];
+}
 
-"java.error.missing_main_class" = "%@ is missing main class attribute. If this is a mod, put it into the “mods” folder of your selected instance.";
-"java.error.missing_runtime" = "%@ requires Java %d or later to run. Please install it first and specify it in Manage Runtimes.";
+static UIColor *AmethystThemeAccentColorForPreference(BOOL soft) {
+    NSString *accentKey = getPrefObject(@"general.theme_accent");
+    const AmethystAccentPalette *palette = AmethystAccentPaletteForKey(accentKey);
+    if (soft) {
+        return AmethystDynamicColor(palette->lightSoft, palette->darkSoft, 1.0);
+    }
+    return AmethystDynamicColor(palette->light, palette->dark, 1.0);
+}
 
-"launcher.mcl.downloading_file" = "Downloading %@";
-"launcher.mcl.error_download" = "Failed to download %@: %@";
+typedef struct {
+    const char *key;
+    uint32_t lightBackground;
+    uint32_t darkBackground;
+    uint32_t lightSurface;
+    uint32_t darkSurface;
+    uint32_t lightSurfaceElevated;
+    uint32_t darkSurfaceElevated;
+    uint32_t lightTextPrimary;
+    uint32_t darkTextPrimary;
+    uint32_t lightTextSecondary;
+    uint32_t darkTextSecondary;
+    uint32_t lightSeparator;
+    uint32_t darkSeparator;
+    uint32_t lightSelection;
+    uint32_t darkSelection;
+} AmethystThemePalette;
 
-"launcher.menu.custom_controls" = "Custom controls";
-"launcher.menu.execute_jar" = "Execute .jar";
+static const AmethystThemePalette kAmethystThemePalettes[] = {
+    {"amethyst", 0xF4F7FB, 0x0F131A, 0xFFFFFF, 0x151B24, 0xE9EEF5, 0x1C2430, 0x1B1F24, 0xE6EDF3, 0x546374, 0x9AA8B6, 0xD5DEE8, 0x2A3340, 0xDCE9F7, 0x233040},
+    {"midnight", 0xEFF3FB, 0x0B0F16, 0xF7FAFF, 0x121826, 0xE3E9F4, 0x1A2333, 0x101828, 0xE2E8F0, 0x475467, 0x98A2B3, 0xCDD5E1, 0x243042, 0xD7E3F7, 0x1C2536},
+    {"warm", 0xFBF5EF, 0x1A120F, 0xFFFAF6, 0x221714, 0xF3E8DD, 0x2C1F1A, 0x2B1E1A, 0xF6EEE7, 0x6B5449, 0xC8B6AA, 0xE4D4C6, 0x3A2A23, 0xF1E1D2, 0x33241E},
+    {"oled", 0xF5F5F5, 0x000000, 0xFFFFFF, 0x0B0B0B, 0xEDEDED, 0x141414, 0x1A1A1A, 0xF2F2F2, 0x5A5A5A, 0xB0B0B0, 0xD6D6D6, 0x1F1F1F, 0xE0E0E0, 0x161616}
+};
 
-"launcher.wait_jit.title" = "Waiting for JIT";
-"launcher.wait_jit.message" = "Amethyst relies on Just-in-time compilation for Java to work at maximum performance.";
-"launcher.wait_jit_trollstore.message" = "If you still see this message, please enable URL Scheme in TrollStore.";
+static const AmethystThemePalette *AmethystThemePaletteForKey(NSString *key) {
+    if (![key isKindOfClass:NSString.class] || key.length == 0) {
+        return &kAmethystThemePalettes[0];
+    }
+    for (size_t i = 0; i < sizeof(kAmethystThemePalettes) / sizeof(kAmethystThemePalettes[0]); i++) {
+        if ([key isEqualToString:@(kAmethystThemePalettes[i].key)]) {
+            return &kAmethystThemePalettes[i];
+        }
+    }
+    return &kAmethystThemePalettes[0];
+}
 
-"login.error.username.outOfRange" = "Username must be at least 3 characters and a maximum of 16 characters";
+static const AmethystThemePalette *AmethystCurrentThemePalette(void) {
+    NSString *paletteKey = getPrefObject(@"general.theme_palette");
+    return AmethystThemePaletteForKey(paletteKey);
+}
 
-"login.alert.field.username" = "Username";
+BOOL getEntitlementValue(NSString *key) {
+    void *secTask = SecTaskCreateFromSelf(NULL);
+    CFTypeRef value = SecTaskCopyValueForEntitlement(SecTaskCreateFromSelf(NULL), key, nil);
+    if (value != nil) {
+        CFRelease(value);
+    }
+    CFRelease(secTask);
 
-"login.jit.checking" = "Checking for JIT";
-"login.jit.enabled" = "JIT has been enabled";
-"login.jit.fail" = "JIT could not be enabled.";
-"login.jit.fail.title" = "JIT could not be enabled on your device.";
-"login.jit.fail.description" = "No integrations could be used to automatically enable JIT on your device, and it must now be enabled manually. Errors have been logged to latestlog.txt.";
-"login.jit.fail.description_unsupported" = "An unsupported installation method has been detected. Please reinstall using one of supported methods.";
+    return value != nil && [(__bridge id)value boolValue];
+}
 
-// Login buttons
-"login.menu.sendlogs" = "Send your logs";
-"login.option.add" = "Add account";
-"login.option.select" = "Select account";
-"login.option.demo" = "Demo account";
-"login.option.microsoft" = "Microsoft account";
-"login.option.local" = "Local account";
+BOOL isJITEnabled(BOOL checkCSFlags) {
+    if (!checkCSFlags && (getEntitlementValue(@"dynamic-codesigning") || isJailbroken)) {
+        return YES;
+    }
 
-"login.warn.title.legacy_device" = "The next release of Amethyst will not be compatible with this device.";
-"login.warn.message.legacy_device" = "To run the next major release, a device capable of running iOS 14 is required.";
-"login.warn.title.legacy_ios" = "The next release of Amethyst will require a system update.";
-"login.warn.message.legacy_ios" = "To run the next major release, this device needs to be running iOS 14 or later.";
-"login.warn.title.limited_ram" = "This device has a limited amount of memory available.";
-"login.warn.message.limited_ram" = "We recommend leaving auto RAM enabled to prevent instability and performance issues.";
-"login.warn.title.ios19_jitdead" = "Amethyst is not supported on iOS 26 or later.";
-"login.warn.message.ios19_jitdead" = "Due to changes in iOS that inhibit the ability to enable JIT, Amethyst cannot work in its current state and requires heavy research to find a new path forward.\n\nPressing OK will close the app.";
+    int flags;
+    csops(getpid(), 0, &flags, sizeof(flags));
+    return (flags & CS_DEBUGGED) != 0;
+}
 
-"login.warn.title.demomode" = "Your account is Demo";
-"login.warn.message.demomode" = "As a replacement to offline and local mode, demo mode will allow you to sign into a Microsoft account that does not own the game and play the Java Edition trial, introduced in 1.3.1 and newer versions. Older versions contain the full game, as the official launcher does not place these restrictions. See our website to learn more about this transition from offline mode.";
+void openLink(UIViewController* sender, NSURL* link) {
+    if (NSClassFromString(@"SFSafariViewController") == nil) {
+        NSData *data = [link.absoluteString dataUsingEncoding:NSUTF8StringEncoding];
+        CIFilter *filter = [CIFilter filterWithName:@"CIQRCodeGenerator"];
+        [filter setValue:data forKey:@"inputMessage"];
+        UIImage *image = [UIImage imageWithCIImage:filter.outputImage scale:1.0 orientation:UIImageOrientationUp];
+        UIGraphicsBeginImageContextWithOptions(CGSizeMake(300, 300), NO, 0.0);
+        CGRect frame = CGRectMake(0, 0, 300, 300);
+        [image drawInRect:frame];
+        UIImageView *imageView = [[UIImageView alloc] initWithFrame:frame];
+        imageView.image = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
 
-"login.warn.title.localmode" = "Offline mode is now Local mode.";
-"login.warn.message.localmode" = "You can continue to play installed versions, but you can no longer download Minecraft without a paid account. No support will be provided for issues with local accounts, or other means of acquiring Minecraft.";
+        UIAlertController* alert = [UIAlertController alertControllerWithTitle:nil
+            message:link.absoluteString
+            preferredStyle:UIAlertControllerStyleAlert];
 
-"login.msa.error.xsts.noxboxacc" = "An Xbox profile is not registered for this Microsoft account. Please make sure that you have made an Xbox profile.\nError code: 2148916233";
-"login.msa.error.xsts.noxbox" = "Xbox Live is currently unavailable in your country.\nError code: 2148916235";
-"login.msa.error.xsts.krverify" = "Your account needs to be verified by your parents before you can continue.\nError code: 2148916236 or 2148916237.";
-"login.msa.error.xsts.underage" = "Your account needs to be linked to a parent account before you can continue.\nError code: 2148916238";
+        UIViewController *vc = UIViewController.new;
+        vc.view = imageView;
+        [alert setValue:vc forKey:@"contentViewController"];
 
-"login.msa.progress.acquireAccessToken" = "(1/5) Acquiring the Access token";
-"login.msa.progress.acquireXBLToken" = "(2/5) Acquiring the Xbox Live token";
-"login.msa.progress.acquireXSTS" = "Acquiring XSTS";
-"login.msa.progress.acquireXboxProfile" = "(3/5) Acquiring the Xbox profile";
-"login.msa.progress.acquireMCToken" = "(4/5) Acquiring the Minecraft token";
-"login.msa.progress.checkMCProfile" = "(5/5) Checking the Minecraft profile";
+        UIAlertAction* doneAction = [UIAlertAction actionWithTitle:localize(@"Done", nil) style:UIAlertActionStyleCancel handler:nil];
+        [alert addAction:doneAction];
+        [sender presentViewController:alert animated:YES completion:nil];
+    } else {
+        SFSafariViewController *vc = [[SFSafariViewController alloc] initWithURL:link];
+        [sender presentViewController:vc animated:YES completion:nil];
+    }
+}
 
-"News" = "News";
-"Profiles" = "Profiles";
-"Settings" = "Settings";
+NSMutableDictionary* parseJSONFromFile(NSString *path) {
+    NSError *error;
 
-"preference.section.general" = "General Settings";
-"preference.section.theme" = "Theme";
-"preference.section.video" = "Video and Audio Settings";
-"preference.section.footer.video" = "Auto renderer allows Amethyst to choose the best option based on Minecraft version. Decreasing resolution reduces GPU workload for better performance.";
-"preference.section.control" = "Control customization";
-"preference.section.debug" = "UI Debugging settings";
-"preference.section.footer.debug" = "You may need to restart the launcher for changes to take effect.";
-//"preference.section.footer.control" = "";
-"preference.section.java" = "Java Tweaks";
-//"preference.section.footer.java" = "";
+    NSString *content = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:&error];
+    if (content == nil) {
+        NSLog(@"[ParseJSON] Error: could not read %@: %@", path, error.localizedDescription);
+        return @{@"NSErrorObject": error}.mutableCopy;
+    }
 
-"preference.title.confirm" = "Are you sure?";
+    NSData* data = [content dataUsingEncoding:NSUTF8StringEncoding];
+    NSMutableDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers error:&error];
+    if (error) {
+        NSLog(@"[ParseJSON] Error: could not parse JSON: %@", error.localizedDescription);
+        return @{@"NSErrorObject": error}.mutableCopy;
+    }
+    return dict;
+}
 
-"preference.title.game_directory" = "Game directory";
-"preference.title.confirm.delete_game_directory" = "The instance %@ will be deleted forever and cannot be restored.";
-"preference.multidir.add_directory" = "add game directory";
+NSError* saveJSONToFile(NSDictionary *dict, NSString *path) {
+    // TODO: handle rename
+    NSError *error;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:dict options:NSJSONWritingPrettyPrinted error:&error];
+    if (jsonData == nil) {
+        return error;
+    }
+    BOOL success = [jsonData writeToFile:path options:NSDataWritingAtomic error:&error];
+    if (!success) {
+        return error;
+    }
+    return nil;
+}
 
-"preference.title.check_sha" = "Check files after downloading";
-"preference.detail.check_sha" = "This option forces launcher to check the file hash if it's available. Prevents broken downloads.";
-"preference.title.cosmetica" = "Cosmetica Capes";
-"preference.detail.cosmetica" = "Enable capes from Cosmetica (previously Arc). For more information please visit https://cosmetica.cc. Requires OptiFine";
-"preference.title.debug_logging" = "Debug logging";
-"preference.detail.debug_logging" = "Logs internal settings and actions to latestlog.txt. This helps the developers find issues easier, but Minecraft may run slower as the logs will be written to more often.";
-"preference.title.appicon" = "Set app icon";
-"preference.detail.appicon" = "Allows you to choose between different Home Screen icons for Amethyst.";
-"preference.title.appicon-default" = "Familiar Amethyst light";
-"preference.title.appicon-dark" = "Familiar Amethyst dark";
-"preference.title.appicon-development" = "Penciled Development";
-"preference.title.hidden_sidebar" = "Hide main menu sidebar by default";
-"preference.detail.hidden_sidebar" = "Allows you to hide the sidebar on the main menu by default and when rotating.";
+NSString* localize(NSString* key, NSString* comment) {
+    NSString *value = NSLocalizedString(key, nil);
+    if (![NSLocale.preferredLanguages[0] isEqualToString:@"en"] && [value isEqualToString:key]) {
+        NSString* path = [NSBundle.mainBundle pathForResource:@"en" ofType:@"lproj"];
+        NSBundle* languageBundle = [NSBundle bundleWithPath:path];
+        value = [languageBundle localizedStringForKey:key value:nil table:nil];
 
-"preference.title.theme_palette" = "Theme palette";
-"preference.detail.theme_palette" = "Change the overall UI colors.";
-"preference.pick.theme_palette.amethyst" = "Amethyst";
-"preference.pick.theme_palette.midnight" = "Midnight";
-"preference.pick.theme_palette.warm" = "Warm";
-"preference.pick.theme_palette.oled" = "OLED";
-"preference.title.theme_accent" = "Theme color";
-"preference.detail.theme_accent" = "Change the accent color used across the launcher UI.";
-"preference.pick.theme_accent.teal" = "Teal";
-"preference.pick.theme_accent.blue" = "Blue";
-"preference.pick.theme_accent.purple" = "Purple";
-"preference.pick.theme_accent.pink" = "Pink";
-"preference.pick.theme_accent.orange" = "Orange";
-"preference.pick.theme_accent.red" = "Red";
-"preference.pick.theme_accent.green" = "Green";
-"preference.pick.theme_accent.mono" = "Mono";
-"preference.title.theme_mode" = "Appearance";
-"preference.detail.theme_mode" = "Choose light, dark, or follow the system.";
-"preference.pick.theme_mode.system" = "System";
-"preference.pick.theme_mode.light" = "Light";
-"preference.pick.theme_mode.dark" = "Dark";
-"preference.title.menu_compact" = "Compact menu";
-"preference.detail.menu_compact" = "Reduce spacing in the sidebar menu.";
-"preference.title.menu_show_icons" = "Show menu icons";
-"preference.detail.menu_show_icons" = "Display icons next to menu items.";
-"preference.title.menu_show_account" = "Show account button";
-"preference.detail.menu_show_account" = "Display the account switcher in the sidebar.";
-"preference.title.menu_show_news" = "Show News tab";
-"preference.detail.menu_show_news" = "Display the News section in the sidebar.";
-"preference.title.menu_show_custom_controls" = "Show Custom Controls";
-"preference.detail.menu_show_custom_controls" = "Display Custom Controls in the sidebar.";
-"preference.title.menu_show_mod_installer" = "Show Mod Installer";
-"preference.detail.menu_show_mod_installer" = "Display the Execute .jar menu item.";
-"preference.title.menu_show_send_logs" = "Show Send Logs";
-"preference.detail.menu_show_send_logs" = "Display the Send Logs menu item.";
-"preference.title.reduce_motion" = "Reduce motion";
-"preference.detail.reduce_motion" = "Disable animations in settings lists.";
-"preference.title.settings_compact_rows" = "Compact settings list";
-"preference.detail.settings_compact_rows" = "Reduce spacing in the settings list.";
-"preference.title.settings_show_icons" = "Show settings icons";
-"preference.detail.settings_show_icons" = "Display icons next to settings.";
+        if ([value isEqualToString:key]) {
+            value = [[NSBundle bundleWithIdentifier:@"com.apple.UIKit"] localizedStringForKey:key value:nil table:nil];
+        }
+    }
 
-"preference.title.reset_warnings" = "Reset all warnings";
-"preference.title.done.reset_warnings" = "All warnings have been reset.";
+    return value;
+}
 
-"preference.title.reset_settings" = "Reset all settings";
-"preference.title.confirm.reset_settings" = "This will remove all of your custom preferences, including resolution, button size, and Java arguments.";
-"preference.title.done.reset_settings" = "All of the default settings have been restored.";
+UIColor* AmethystThemeBackgroundColor(void) {
+    const AmethystThemePalette *palette = AmethystCurrentThemePalette();
+    return AmethystDynamicColor(palette->lightBackground, palette->darkBackground, 1.0);
+}
 
-"preference.title.erase_demo_data" = "Erase Demo game data";
-"preference.title.confirm.erase_demo_data" = "This will erase all Demo game versions and data used for Demo accounts.";
-"preference.title.done.erase_demo_data" = "All of the Demo game data has been erased.";
+UIColor* AmethystThemeSurfaceColor(void) {
+    const AmethystThemePalette *palette = AmethystCurrentThemePalette();
+    return AmethystDynamicColor(palette->lightSurface, palette->darkSurface, 1.0);
+}
 
-"preference.title.renderer" = "Renderer";
+UIColor* AmethystThemeSurfaceElevatedColor(void) {
+    const AmethystThemePalette *palette = AmethystCurrentThemePalette();
+    return AmethystDynamicColor(palette->lightSurfaceElevated, palette->darkSurfaceElevated, 1.0);
+}
 
-"preference.title.renderer.release.auto" = "Auto";
-"preference.title.renderer.release.gl4es" = "holy gl4es";
-"preference.title.renderer.release.angle" = "ANGLE";
-"preference.title.renderer.release.mg" = "MobileGlues";
-"preference.title.renderer.release.zink" = "Zink";
+UIColor* AmethystThemeAccentColor(void) {
+    return AmethystThemeAccentColorForPreference(NO);
+}
 
-"preference.title.renderer.debug.auto" = "Auto: gl4es or ANGLE";
-"preference.title.renderer.debug.gl4es" = "holy gl4es - exports OpenGL 2.1";
-"preference.title.renderer.debug.angle" = "ANGLE (1.17+) - exports OpenGL 3.2 (Core Profile, limited)";
-"preference.title.renderer.debug.mg" = "MobileGlues (1.17+) - exports OpenGL 4.0, EXPERIMENTAL";
-"preference.title.renderer.debug.zink" = "Zink (Mesa 21.0) - exports OpenGL 4.1";
+UIColor* AmethystThemeAccentSoftColor(void) {
+    return AmethystThemeAccentColorForPreference(YES);
+}
 
-"preference.detail.renderer" = "Change the OpenGL render engine to use. Zink is temporarily disabled on iOS 16 and later to diagnose issues.";
+UIColor* AmethystThemeTextPrimaryColor(void) {
+    const AmethystThemePalette *palette = AmethystCurrentThemePalette();
+    return AmethystDynamicColor(palette->lightTextPrimary, palette->darkTextPrimary, 1.0);
+}
 
-"preference.title.resolution" = "Resolution (%)";
-"preference.detail.resolution" = "Allows you to decrease the game resolution.";
-"preference.title.max_framerate" = "Maximum framerate";
-"preference.detail.max_framerate" = "Allows you to limit the game framerate to 60FPS on ProMotion displays.";
+UIColor* AmethystThemeTextSecondaryColor(void) {
+    const AmethystThemePalette *palette = AmethystCurrentThemePalette();
+    return AmethystDynamicColor(palette->lightTextSecondary, palette->darkTextSecondary, 1.0);
+}
 
-"preference.title.performance_hud" = "Show Performance HUD";
-"preference.detail.performance_hud" = "When available, show the performance monitoring overlay.";
+UIColor* AmethystThemeSeparatorColor(void) {
+    const AmethystThemePalette *palette = AmethystCurrentThemePalette();
+    return AmethystDynamicColor(palette->lightSeparator, palette->darkSeparator, 1.0);
+}
 
-"preference.title.fullscreen_airplay" = "Fullscreen AirPlay";
-"preference.detail.fullscreen_airplay" = "Allows presenting fullscreen game window on the external display rather than mirroring everything on screen.";
-"preference.title.silence_other_audio" = "Pause audio when game opens";
-"preference.detail.silence_other_audio" = "Enable to allow Amethyst to pause audio from other apps, such as Music, when launching the game.";
-"preference.title.silence_with_switch" = "Disable audio with silent switch";
-"preference.detail.silence_with_switch" = "Enable to disable audio when Silent Mode is on. Headphones and external speakers are not affected.";
-"preference.title.allow_microphone" = "Allow microphone input";
-"preference.detail.allow_microphone" = "Enable this only if you are using voice chat mod. Silent switch option will be ignored, and audio quality from other apps will be affected.";
-"preference.title.default_gamepad_ctrl" = "Controller configuration";
-"preference.title.hardware_hide" = "Hide controls when hardware is connected";
-"preference.detail.hardware_hide" = "Enable the behaviour of automatically disabling the on-screen control overlay when a mouse or game controller is connected.";
-"preference.title.recording_hide" = "Hide controls from screen recording";
-"preference.detail.recording_hide" = "Hides controls from screenshot and screen recording while they remain visible on the screen.";
-"preference.title.gesture_mouse" = "Mouse gestures";
-"preference.detail.gesture_mouse" = "Enables gestures, such as tap to place block, hold to break block, scrolling with 2 fingers";
-"preference.title.gesture_mouse_tap_hold" = "Tap and hold gestures";
-"preference.detail.gesture_mouse_tap_hold" = "Enable tap to place and hold to break blocks.";
-"preference.title.gesture_mouse_scroll" = "Two-finger scroll";
-"preference.detail.gesture_mouse_scroll" = "Enable two-finger scrolling gestures.";
-"preference.title.gesture_hotbar" = "Hotbar gestures";
-"preference.detail.gesture_hotbar" = "Enables gestures, such as touch the hotbar slot, swap items between hand, throw items";
-"preference.title.disable_haptics" = "Disable on-screen haptics";
-"preference.title.press_duration" = "Long-press duration (ms)";
-"preference.detail.press_duration" = "Trigger press duration for destroying blocks and dropping items.";
-"preference.title.button_scale" = "On-screen button scale (%)";
-"preference.detail.button_scale" = "Upscale them if buttons are too small, usually needed for iPad users.";
-"preference.title.mouse_scale" = "Mouse scaling (%)";
-"preference.detail.mouse_scale" = "Change the size of the virtual mouse";
-"preference.title.mouse_speed" = "Mouse speed (%)";
-"preference.detail.mouse_speed" = "Change the speed of the virtual mouse";
-"preference.title.virtmouse_enable" = "Virtual mouse";
-"preference.detail.virtmouse_enable" = "Enable this option to start with virtual mouse on";
-"preference.title.slideable_hotbar" = "Slideable hotbar";
-"preference.detail.slideable_hotbar" = "Make the hotbar slideable like the mouse wheel";
+UIColor* AmethystThemeSelectionColor(void) {
+    const AmethystThemePalette *palette = AmethystCurrentThemePalette();
+    return AmethystDynamicColor(palette->lightSelection, palette->darkSelection, 1.0);
+}
 
-"preference.title.gyroscope_enable" = "Enable gyroscope controls";
-"preference.detail.gyroscope_enable" = "Enabling this will allow you to turn in game by turning your device";
-"preference.title.gyroscope_invert_x_axis" = "Invert gyroscope left and right";
-"preference.detail.gyroscope_invert_x_axis" = "Inverts the X-axis of the gyroscope";
-"preference.title.gyroscope_sensitivity" = "Gyroscope controls sensitivity";
-"preference.detail.gyroscope_sensitivity" = "Adjust the sensitivity of gyroscope controls";
+static UIUserInterfaceStyle AmethystPreferredInterfaceStyle(void) {
+    NSString *mode = getPrefObject(@"general.theme_mode");
+    if ([mode isKindOfClass:NSString.class]) {
+        if ([mode isEqualToString:@"light"]) {
+            return UIUserInterfaceStyleLight;
+        }
+        if ([mode isEqualToString:@"dark"]) {
+            return UIUserInterfaceStyleDark;
+        }
+    }
+    return UIUserInterfaceStyleUnspecified;
+}
 
-"preference.title.manage_runtime" = "Manage runtimes";
-"preference.title.confirm.delete_runtime" = "%@ will be deleted";
-"preference.manage_runtime.header.default" = "Preferred Java version";
-"preference.manage_runtime.default.1165" = "1.16.5 and older";
-"preference.manage_runtime.default.117" = "1.17 and newer";
-"preference.manage_runtime.footer.default" = "Minecraft 1.16.5 and older may run with a newer Java version, however compatibility with mods is not guaranteed. External runtimes can be placed in the “java_runtimes” folder. Changing Java version for “Execute .jar” only takes effect if the installer does not expect a newer Java version.";
-"preference.manage_runtime.footer.java8" = "This is the default version for Minecraft 1.16.5 and older.";
-"preference.manage_runtime.footer.java17" = "This is the default version for Minecraft 1.17 and newer.";
-"preference.manage_runtime.header.invalid" = "Invalid runtimes";
+void AmethystApplyThemeAppearance(void) {
+    UIColor *accent = AmethystThemeAccentColor();
+    UIColor *surface = AmethystThemeSurfaceColor();
+    UIColor *text = AmethystThemeTextPrimaryColor();
+    UIColor *separator = AmethystThemeSeparatorColor();
 
-"preference.title.java_args" = "JVM Launch arguments";
-"preference.detail.java_args" = "Pass arguments to Java when launching Minecraft. Be careful, this can make the game crash if modified incorrectly.";
-"preference.placeholder.java_args" = "Specify arguments...";
-"preference.title.env_variables" = "Environment variables";
-"preference.detail.env_variables" = "Set custom environment variables when launching Minecraft. Be careful, this can make the game crash if modified incorrectly.";
-"preference.placeholder.env_variables" = "Specify variables...";
-"preference.title.auto_ram" = "Auto RAM";
-"preference.detail.auto_ram" = "Enables automatic RAM adjuster";
-"preference.warn.auto_ram" = "Disabling this option on an unjailbroken device can create instability if altered. Proceed with caution.";
-"preference.title.allocated_memory" = "Memory allocation (MB)";
-"preference.detail.allocated_memory" = "Controls how much memory is given to Minecraft";
-"preference.warn.allocated_memory" = "Due to limitations in the operating system itself, this option may cause instability at this and higher values. Proceed with caution.";
-"preference.title.custom_env" = "Environment variables";
-"preference.detail.custom_env" = "This option is under construction. Create and edit custom_env.txt in the meantime.";
+    if (@available(iOS 13.0, *)) {
+        UINavigationBarAppearance *navAppearance = [[UINavigationBarAppearance alloc] init];
+        [navAppearance configureWithOpaqueBackground];
+        navAppearance.backgroundColor = surface;
+        navAppearance.titleTextAttributes = @{NSForegroundColorAttributeName: text};
+        navAppearance.largeTitleTextAttributes = @{NSForegroundColorAttributeName: text};
+        navAppearance.shadowColor = separator;
 
-"preference.title.debug_always_attached_jit" = "Keep attached to StikDebug";
-"preference.detail.debug_always_attached_jit" = "Enable this if your mods require loading .dylib at runtime. When this is on, StikDebug's PiP should not be closed during gameplay.";
-"preference.title.debug_skip_wait_jit" = "Skip \"Waiting for JIT\" dialog";
-"preference.detail.debug_skip_wait_jit" = "This does not allow you to launch without JIT, instead this skips debugger check, because check fails on certain jailbreaks.";
-"preference.title.debug_ipad_ui" = "Unlock iPadOS UI";
-"preference.detail.debug_ipad_ui" = "Unlock iPad-exclusive UI (alert, keyboard, etc.) if enabled or iPhone UI if disabled.";
-"preference.title.debug_auto_correction" = "Auto correction";
-"preference.detail.debug_auto_correction" = "Enable auto correction when typing text in game.";
-"preference.title.debug_hide_home_indicator" = "Hide home indicator";
-"preference.detail.debug_hide_home_indicator" = "This will disable home indicator locking. You will need to use Guided Access to hide and lock home indicator at the same time.";
+        UINavigationBar *navProxy = [UINavigationBar appearance];
+        navProxy.standardAppearance = navAppearance;
+        navProxy.compactAppearance = navAppearance;
+        navProxy.scrollEdgeAppearance = navAppearance;
+        navProxy.tintColor = accent;
 
-"preference.profile.title.name" = "Name";
-"preference.profile.title.loader_type" = "Loader type";
-"preference.profile.title.loader_vendor" = "Loader vendor";
-"preference.profile.title.loader_version" = "Loader version";
-"preference.profile.title.version" = "Version";
-"preference.profile.title.version_type" = "Version type";
-"preference.profile.title.default_touch_control" = "Touch controls";
-"preference.profile.title.default_gamepad_control" = "Gamepad controls";
+        UIToolbarAppearance *toolbarAppearance = [[UIToolbarAppearance alloc] init];
+        [toolbarAppearance configureWithOpaqueBackground];
+        toolbarAppearance.backgroundColor = surface;
+        toolbarAppearance.shadowColor = separator;
 
-"profile.error.name_exists" = "A profile with that name already exists. Please use another name.";
-"profile.section.instance" = "Game Instance settings";
-"profile.section.profiles" = "Profiles in this instance";
-"profile.title.create" = "Create new profile";
-"profile.title.separate_preference" = "Isolate settings";
-"profile.detail.separate_preference" = "Enable this option to isolate any changes made in settings. Doing a Reset will restore to global settings instead of default settings.";
-"profile.title.install_fabric_quilt" = "Install Fabric/Quilt";
+        UIToolbar *toolbarProxy = [UIToolbar appearance];
+        toolbarProxy.standardAppearance = toolbarAppearance;
+        toolbarProxy.compactAppearance = toolbarAppearance;
+        toolbarProxy.scrollEdgeAppearance = toolbarAppearance;
+        toolbarProxy.tintColor = accent;
 
-"controller_configurator.title.current" = "Gamepad configuration file";
-"controller_configurator.title.type.xbox" = "Xbox";
-"controller_configurator.title.type.playstation" = "PlayStation";
+        UITableView *tableProxy = [UITableView appearance];
+        tableProxy.backgroundColor = AmethystThemeBackgroundColor();
+        tableProxy.separatorColor = separator;
 
-"controller_configurator.xbox.title.bumper_left" = "Left bumper";
-"controller_configurator.xbox.title.bumper_right" = "Right bumper";
-"controller_configurator.xbox.title.trigger_left" = "Left trigger";
-"controller_configurator.xbox.title.trigger_right" = "Right trigger";
-"controller_configurator.xbox.title.named_back" = "Guide";
-"controller_configurator.xbox.title.named_start" = "Menu";
-"controller_configurator.xbox.title.named_a" = "A";
-"controller_configurator.xbox.title.named_b" = "B";
-"controller_configurator.xbox.title.named_x" = "X";
-"controller_configurator.xbox.title.named_y" = "Y";
-"controller_configurator.xbox.title.dpad_up" = "Up";
-"controller_configurator.xbox.title.dpad_down" = "Down";
-"controller_configurator.xbox.title.dpad_left" = "Left";
-"controller_configurator.xbox.title.dpad_right" = "Right";
-"controller_configurator.xbox.title.thumb_left" = "Left thumbstick click";
-"controller_configurator.xbox.title.thumb_right" = "Right thumbstick click";
+        UISwitch *switchProxy = [UISwitch appearance];
+        switchProxy.onTintColor = accent;
 
-"controller_configurator.playstation.title.bumper_left" = "L1";
-"controller_configurator.playstation.title.bumper_right" = "R1";
-"controller_configurator.playstation.title.trigger_left" = "L2";
-"controller_configurator.playstation.title.trigger_right" = "R2";
-"controller_configurator.playstation.title.named_back" = "Select";
-"controller_configurator.playstation.title.named_start" = "Start";
-"controller_configurator.playstation.title.named_a" = "Cross";
-"controller_configurator.playstation.title.named_b" = "Circle";
-"controller_configurator.playstation.title.named_x" = "Square";
-"controller_configurator.playstation.title.named_y" = "Triangle";
-"controller_configurator.playstation.title.dpad_up" = "Up";
-"controller_configurator.playstation.title.dpad_down" = "Down";
-"controller_configurator.playstation.title.dpad_left" = "Left";
-"controller_configurator.playstation.title.dpad_right" = "Right";
-"controller_configurator.playstation.title.thumb_left" = "L3";
-"controller_configurator.playstation.title.thumb_right" = "R3";
+        UIProgressView *progressProxy = [UIProgressView appearance];
+        progressProxy.tintColor = accent;
 
-"controller_configurator.section.config_files" = "Current configuration file";
-"controller_configurator.section.game_mappings" = "Game mappings";
-"controller_configurator.section.footer.game_mappings" = "Bindings when the mouse is locked in game.";
-"controller_configurator.section.menu_mappings" = "Menu mappings";
-"controller_configurator.section.footer.menu_mappings" = "Bindings when the mouse is not locked, such as on the title screen or in the pause menu.";
-"controller_configurator.section.controller_style" = "Controller type";
-"controller_configurator.section.footer.controller_style" = "Show different controller button names in this configurator.";
+        UITextField *textFieldProxy = [UITextField appearance];
+        textFieldProxy.tintColor = accent;
+    } else {
+        UINavigationBar *navProxy = [UINavigationBar appearance];
+        navProxy.barTintColor = surface;
+        navProxy.titleTextAttributes = @{NSForegroundColorAttributeName: text};
+        navProxy.tintColor = accent;
+
+        UIToolbar *toolbarProxy = [UIToolbar appearance];
+        toolbarProxy.barTintColor = surface;
+        toolbarProxy.tintColor = accent;
+
+        UISwitch *switchProxy = [UISwitch appearance];
+        switchProxy.onTintColor = accent;
+    }
+}
+
+void AmethystApplyThemeToWindow(UIWindow *window) {
+    if (!window) return;
+    if (@available(iOS 13.0, *)) {
+        window.overrideUserInterfaceStyle = AmethystPreferredInterfaceStyle();
+    }
+    window.tintColor = AmethystThemeAccentColor();
+    window.backgroundColor = AmethystThemeBackgroundColor();
+}
+
+void customNSLog(const char *file, int lineNumber, const char *functionName, NSString *format, ...)
+{
+    va_list ap; 
+    va_start (ap, format);
+    NSString *body = [[NSString alloc] initWithFormat:format arguments:ap];
+    printf("%s", [body UTF8String]);
+    if (![format hasSuffix:@"\n"]) {
+        printf("\n");
+    }
+    va_end (ap);
+}
+
+CGFloat MathUtils_dist(CGFloat x1, CGFloat y1, CGFloat x2, CGFloat y2) {
+    const CGFloat x = (x2 - x1);
+    const CGFloat y = (y2 - y1);
+    return (CGFloat) hypot(x, y);
+}
+
+//Ported from https://www.arduino.cc/reference/en/language/functions/math/map/
+CGFloat MathUtils_map(CGFloat x, CGFloat in_min, CGFloat in_max, CGFloat out_min, CGFloat out_max) {
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+CGFloat dpToPx(CGFloat dp) {
+    CGFloat screenScale = [[UIScreen mainScreen] scale];
+    return dp * screenScale;
+}
+
+CGFloat pxToDp(CGFloat px) {
+    CGFloat screenScale = [[UIScreen mainScreen] scale];
+    return px / screenScale;
+}
+
+void setButtonPointerInteraction(UIButton *button) {
+    button.pointerInteractionEnabled = YES;
+    button.pointerStyleProvider = ^ UIPointerStyle* (UIButton* button, UIPointerEffect* proposedEffect, UIPointerShape* proposedShape) {
+        UITargetedPreview *preview = [[UITargetedPreview alloc] initWithView:button];
+        return [NSClassFromString(@"UIPointerStyle") styleWithEffect:[NSClassFromString(@"UIPointerHighlightEffect") effectWithPreview:preview] shape:proposedShape];
+    };
+}
+
+__attribute__((noinline,optnone,naked))
+void* JIT26CreateRegionLegacy(size_t len) {
+    asm("brk #0x69 \n"
+        "ret");
+}
+__attribute__((noinline,optnone,naked))
+void* JIT26PrepareRegion(void *addr, size_t len) {
+    asm("mov x16, #1 \n"
+        "brk #0xf00d \n"
+        "ret");
+}
+__attribute__((noinline,optnone,naked))
+void BreakSendJITScript(char* script, size_t len) {
+   asm("mov x16, #2 \n"
+       "brk #0xf00d \n"
+       "ret");
+}
+__attribute__((noinline,optnone,naked))
+void JIT26SetDetachAfterFirstBr(BOOL value) {
+   asm("mov x16, #3 \n"
+       "brk #0xf00d \n"
+       "ret");
+}
+__attribute__((noinline,optnone,naked))
+void JIT26PrepareRegionForPatching(void *addr, size_t size) {
+   asm("mov x16, #4 \n"
+       "brk #0xf00d \n"
+       "ret");
+}
+void JIT26SendJITScript(NSString* script) {
+    NSCAssert(script, @"Script must not be nil");
+    BreakSendJITScript((char*)script.UTF8String, script.length);
+}
+BOOL DeviceRequiresTXMWorkaround(void) {
+    if (@available(iOS 26.0, *)) {
+        DIR *d = opendir("/private/preboot");
+        if(!d) return NO;
+        struct dirent *dir;
+        char txmPath[PATH_MAX];
+        while ((dir = readdir(d)) != NULL) {
+            if(strlen(dir->d_name) == 96) {
+                snprintf(txmPath, sizeof(txmPath), "/private/preboot/%s/usr/standalone/firmware/FUD/Ap,TrustedExecutionMonitor.img4", dir->d_name);
+                break;
+            }
+        }
+        closedir(d);
+        return access(txmPath, F_OK) == 0;
+    }
+    return NO;
+}
