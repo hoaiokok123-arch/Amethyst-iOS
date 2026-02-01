@@ -54,7 +54,7 @@ static GameSurfaceView* pojavWindow;
 @property(nonatomic) BOOL isMacCatalystApp, shouldHideControlsFromRecording,
     shouldTriggerClick, shouldTriggerHaptic, slideableHotbar, toggleHidden;
 
-@property(nonatomic) BOOL enableMouseGestures, enableHotbarGestures;
+@property(nonatomic) BOOL enableMouseGestures, enableMouseScrollGestures, enableHotbarGestures;
 
 @property(nonatomic) UIImpactFeedbackGenerator *lightHaptic;
 @property(nonatomic) UIImpactFeedbackGenerator *mediumHaptic;
@@ -338,11 +338,15 @@ static GameSurfaceView* pojavWindow;
 
     // Update gestures state
     self.slideableHotbar = getPrefBool(@"control.slideable_hotbar");
-    self.enableMouseGestures = getPrefBool(@"control.gesture_mouse");
+    BOOL mouseGestureMaster = getPrefBool(@"control.gesture_mouse");
+    self.enableMouseGestures = mouseGestureMaster && getPrefBool(@"control.gesture_mouse_tap_hold");
+    self.enableMouseScrollGestures = mouseGestureMaster && getPrefBool(@"control.gesture_mouse_scroll");
     self.enableHotbarGestures = getPrefBool(@"control.gesture_hotbar");
     self.shouldTriggerHaptic = !getPrefBool(@"control.disable_haptics");
 
-    self.scrollPanGesture.enabled = self.enableMouseGestures;
+    self.tapGesture.enabled = self.enableMouseGestures;
+    self.longPressGesture.enabled = self.enableMouseGestures;
+    self.scrollPanGesture.enabled = self.enableMouseScrollGestures;
     self.doubleTapGesture.enabled = self.enableHotbarGestures;
     self.longPressGesture.minimumPressDuration = getPrefFloat(@"control.press_duration") / 1000.0;
 
@@ -417,7 +421,7 @@ static GameSurfaceView* pojavWindow;
         virtualMouseFrame.origin.y = self.view.frame.size.height / 2;
         self.mousePointerView.frame = virtualMouseFrame;
     }
-    self.scrollPanGesture.enabled = !isGrabbing;
+    self.scrollPanGesture.enabled = !isGrabbing && self.enableMouseScrollGestures;
     self.mousePointerView.hidden = isGrabbing || !virtualMouseEnabled;
     [self setNeedsUpdateOfPrefersPointerLocked];
 
