@@ -31,6 +31,7 @@
 
     self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStyleInsetGrouped];
     self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeInteractive;
+    self.tableView.delaysContentTouches = NO;
     self.view.backgroundColor = AmethystThemeBackgroundColor();
     self.tableView.backgroundColor = AmethystThemeBackgroundColor();
     self.tableView.backgroundView = nil;
@@ -203,6 +204,25 @@
     return cell;
 }
 
+- (void)tableView:(UITableView *)tableView willDisplayHeaderView:(UIView *)view forSection:(NSInteger)section {
+    if (![view isKindOfClass:UITableViewHeaderFooterView.class]) {
+        return;
+    }
+    UITableViewHeaderFooterView *header = (UITableViewHeaderFooterView *)view;
+    header.contentView.backgroundColor = UIColor.clearColor;
+    header.textLabel.textColor = AmethystThemeTextSecondaryColor();
+}
+
+- (void)tableView:(UITableView *)tableView willDisplayFooterView:(UIView *)view forSection:(NSInteger)section {
+    if (![view isKindOfClass:UITableViewHeaderFooterView.class]) {
+        return;
+    }
+    UITableViewHeaderFooterView *footer = (UITableViewHeaderFooterView *)view;
+    footer.contentView.backgroundColor = UIColor.clearColor;
+    footer.textLabel.textColor = AmethystThemeTextSecondaryColor();
+    footer.textLabel.numberOfLines = 0;
+}
+
 #pragma mark initViewCreation, showAlert, checkWarn
 
 - (void)initViewCreation {
@@ -249,10 +269,14 @@
     self.typeSlider = ^void(UITableViewCell *cell, NSString *section, NSString *key, NSDictionary *item) {
         DBNumberedSlider *view = [[DBNumberedSlider alloc] initWithFrame:CGRectMake(0, 0, cell.bounds.size.width / 2.1, cell.bounds.size.height)];
         [view addTarget:weakSelf action:@selector(sliderMoved:) forControlEvents:UIControlEventValueChanged];
+        [view addTarget:weakSelf action:@selector(sliderFinished:) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside | UIControlEventTouchCancel];
+        [view addTarget:weakSelf action:@selector(sliderTouchDown:) forControlEvents:UIControlEventTouchDown];
+        [view addTarget:weakSelf action:@selector(sliderTouchUp:) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside | UIControlEventTouchCancel];
         view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleLeftMargin;
         view.minimumValue = [item[@"min"] intValue];
         view.maximumValue = [item[@"max"] intValue];
-        view.continuous = YES;
+        NSNumber *continuous = item[@"continuous"];
+        view.continuous = continuous ? continuous.boolValue : YES;
         view.value = [weakSelf.getPreference(section, key) intValue];
         cell.accessoryView = view;
     };
@@ -300,12 +324,44 @@
 
 #pragma mark Control event handlers
 
+- (void)sliderTouchDown:(DBNumberedSlider *)sender {
+    self.tableView.scrollEnabled = NO;
+}
+
+- (void)sliderTouchUp:(DBNumberedSlider *)sender {
+    self.tableView.scrollEnabled = YES;
+}
+
 - (void)sliderMoved:(DBNumberedSlider *)sender {
     [self checkWarn:sender];
     NSDictionary *item = objc_getAssociatedObject(sender, @"item");
     NSString *section = objc_getAssociatedObject(sender, @"section");
     NSString *key = objc_getAssociatedObject(sender, @"key");
 
+    sender.value = (int)sender.value;
+
+    NSNumber *continuous = item[@"continuous"];
+    BOOL isContinuous = !continuous || continuous.boolValue;
+    if (!isContinuous) {
+        return;
+    }
+
+    self.setPreference(section, key, @(sender.value));
+    void(^invokeAction)(int) = item[@"action"];
+    if (invokeAction) {
+        invokeAction((int)sender.value);
+    }
+}
+
+- (void)sliderFinished:(DBNumberedSlider *)sender {
+    NSDictionary *item = objc_getAssociatedObject(sender, @"item");
+    NSNumber *continuous = item[@"continuous"];
+    if (!continuous || continuous.boolValue) {
+        return;
+    }
+
+    NSString *section = objc_getAssociatedObject(sender, @"section");
+    NSString *key = objc_getAssociatedObject(sender, @"key");
     sender.value = (int)sender.value;
     self.setPreference(section, key, @(sender.value));
 
