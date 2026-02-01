@@ -70,6 +70,21 @@
     void(^applyThemeChanges)(void) = ^void() {
         [weakSelf applyThemeChangesAndReload];
     };
+    BOOL(^hasThemeImage)(void) = ^BOOL() {
+        NSString *path = getPrefObject(@"general.theme_background_image");
+        return [path isKindOfClass:NSString.class] && path.length > 0;
+    };
+    BOOL(^hasThemeVideo)(void) = ^BOOL() {
+        NSString *videoPath = getPrefObject(@"general.theme_background_video");
+        if ([videoPath isKindOfClass:NSString.class] && videoPath.length > 0) {
+            return YES;
+        }
+        NSString *landscapePath = getPrefObject(@"general.theme_background_video_landscape");
+        return [landscapePath isKindOfClass:NSString.class] && landscapePath.length > 0;
+    };
+    BOOL(^hasThemeMedia)(void) = ^BOOL() {
+        return hasThemeImage() || hasThemeVideo();
+    };
     self.prefContents = @[
         @[
             // General settings
@@ -146,6 +161,18 @@
             @{@"key": @"menu_show_news",
               @"hasDetail": @YES,
               @"icon": @"newspaper",
+              @"type": self.typeSwitch,
+              @"enableCondition": whenNotInGame
+            },
+            @{@"key": @"menu_show_profiles",
+              @"hasDetail": @YES,
+              @"icon": @"person.2",
+              @"type": self.typeSwitch,
+              @"enableCondition": whenNotInGame
+            },
+            @{@"key": @"menu_show_settings",
+              @"hasDetail": @YES,
+              @"icon": @"gearshape",
               @"type": self.typeSwitch,
               @"enableCondition": whenNotInGame
             },
@@ -354,6 +381,28 @@
                   applyThemeChanges();
               }
             },
+            @{@"key": @"theme_button_corner_radius",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"square",
+              @"type": self.typeSlider,
+              @"min": @(0),
+              @"max": @(30),
+              @"action": ^(int value){
+                  applyThemeChanges();
+              }
+            },
+            @{@"key": @"theme_button_border_width",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"line.3.horizontal.decrease",
+              @"type": self.typeSlider,
+              @"min": @(0),
+              @"max": @(6),
+              @"action": ^(int value){
+                  applyThemeChanges();
+              }
+            },
             @{@"key": @"theme_background_image",
               @"section": @"general",
               @"hasDetail": @YES,
@@ -384,15 +433,32 @@
                   [weakSelf actionPickThemeBackgroundVideoLandscape];
               }
             },
+            @{@"key": @"theme_background_video_mute",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"speaker.slash",
+              @"type": self.typeSwitch,
+              @"enableCondition": hasThemeVideo,
+              @"action": ^(BOOL enabled){
+                  applyThemeChanges();
+              }
+            },
+            @{@"key": @"theme_background_video_loop",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"repeat",
+              @"type": self.typeSwitch,
+              @"enableCondition": hasThemeVideo,
+              @"action": ^(BOOL enabled){
+                  applyThemeChanges();
+              }
+            },
             @{@"key": @"theme_background_clear",
               @"icon": @"trash",
               @"type": self.typeButton,
               @"destructive": @YES,
               @"skipActionAlert": @YES,
-              @"enableCondition": ^BOOL(){
-                  NSString *path = getPrefObject(@"general.theme_background_image");
-                  return [path isKindOfClass:NSString.class] && path.length > 0;
-              },
+              @"enableCondition": hasThemeImage,
               @"action": ^void(){
                   [weakSelf actionClearThemeBackgroundImage];
               }
@@ -402,10 +468,7 @@
               @"type": self.typeButton,
               @"destructive": @YES,
               @"skipActionAlert": @YES,
-              @"enableCondition": ^BOOL(){
-                  NSString *path = getPrefObject(@"general.theme_background_video");
-                  return [path isKindOfClass:NSString.class] && path.length > 0;
-              },
+              @"enableCondition": hasThemeVideo,
               @"action": ^void(){
                   [weakSelf actionClearThemeBackgroundVideo];
               }
@@ -415,10 +478,7 @@
               @"type": self.typeButton,
               @"destructive": @YES,
               @"skipActionAlert": @YES,
-              @"enableCondition": ^BOOL(){
-                  NSString *path = getPrefObject(@"general.theme_background_video_landscape");
-                  return [path isKindOfClass:NSString.class] && path.length > 0;
-              },
+              @"enableCondition": hasThemeVideo,
               @"action": ^void(){
                   [weakSelf actionClearThemeBackgroundVideoLandscape];
               }
@@ -428,18 +488,31 @@
               @"hasDetail": @YES,
               @"icon": @"slider.horizontal.3",
               @"type": self.typeSlider,
-              @"enableCondition": ^BOOL(){
-                  NSString *path = getPrefObject(@"general.theme_background_image");
-                  if ([path isKindOfClass:NSString.class] && path.length > 0) {
-                      return YES;
-                  }
-                  NSString *videoPath = getPrefObject(@"general.theme_background_video");
-                  if ([videoPath isKindOfClass:NSString.class] && videoPath.length > 0) {
-                      return YES;
-                  }
-                  NSString *landscapePath = getPrefObject(@"general.theme_background_video_landscape");
-                  return [landscapePath isKindOfClass:NSString.class] && landscapePath.length > 0;
-              },
+              @"enableCondition": hasThemeMedia,
+              @"min": @(0),
+              @"max": @(100),
+              @"action": ^(int value){
+                  applyThemeChanges();
+              }
+            },
+            @{@"key": @"theme_background_blur",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"drop",
+              @"type": self.typeSlider,
+              @"enableCondition": hasThemeMedia,
+              @"min": @(0),
+              @"max": @(100),
+              @"action": ^(int value){
+                  applyThemeChanges();
+              }
+            },
+            @{@"key": @"theme_background_dim",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"moon.fill",
+              @"type": self.typeSlider,
+              @"enableCondition": hasThemeMedia,
               @"min": @(0),
               @"max": @(100),
               @"action": ^(int value){
