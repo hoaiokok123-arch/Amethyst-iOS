@@ -81,6 +81,7 @@
             @"theme_accent": @"teal",
             @"theme_mode": @"system",
             @"theme_background_image": @"",
+            @"theme_background_video": @"",
             @"theme_background_opacity": @(100),
             @"menu_compact": @NO,
             @"menu_show_icons": @YES,
