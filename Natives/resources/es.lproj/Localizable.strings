@@ -214,6 +214,8 @@
 "preference.detail.theme_button_border_width" = "Ajusta el grosor del contorno cuando estÃ¡ habilitado.";
 "preference.title.theme_background_image" = "Imagen de fondo";
 "preference.detail.theme_background_image" = "Elige una imagen para mostrar detrás de la interfaz.";
+"preference.title.theme_background_image_landscape" = "Imagen de fondo (horizontal)";
+"preference.detail.theme_background_image_landscape" = "Elige una imagen para mostrar detrás de la interfaz en horizontal.";
 "preference.title.theme_background_video" = "Video de fondo (vertical)";
 "preference.detail.theme_background_video" = "Elige un video para mostrar detrás de la interfaz en vertical.";
 "preference.title.theme_background_video_landscape" = "Video de fondo (horizontal)";
@@ -223,6 +225,7 @@
 "preference.title.theme_background_video_loop" = "Repetir video de fondo";
 "preference.detail.theme_background_video_loop" = "Repite el video de fondo continuamente.";
 "preference.title.theme_background_clear" = "Quitar imagen de fondo";
+"preference.title.theme_background_clear_landscape" = "Quitar imagen de fondo (horizontal)";
 "preference.title.theme_background_clear_video" = "Quitar video (vertical)";
 "preference.title.theme_background_clear_video_landscape" = "Quitar video (horizontal)";
 "preference.title.theme_background_opacity" = "Opacidad del fondo (%)";
@@ -236,6 +239,16 @@
 "preference.pick.theme_background_scale.fill" = "Rellenar";
 "preference.pick.theme_background_scale.fit" = "Ajustar";
 "preference.pick.theme_background_scale.center" = "Centrar";
+"preference.title.theme_background_rotation" = "Rotación del fondo";
+"preference.detail.theme_background_rotation" = "Rota la imagen de fondo.";
+"preference.title.theme_background_rotation_portrait" = "Rotación del fondo (vertical)";
+"preference.detail.theme_background_rotation_portrait" = "Rota la imagen de fondo en vertical.";
+"preference.title.theme_background_rotation_landscape" = "Rotación del fondo (horizontal)";
+"preference.detail.theme_background_rotation_landscape" = "Rota la imagen de fondo en horizontal.";
+"preference.pick.theme_background_rotation.portrait" = "Vertical";
+"preference.pick.theme_background_rotation.landscape" = "Horizontal (auto)";
+"preference.pick.theme_background_rotation.left" = "Izquierda";
+"preference.pick.theme_background_rotation.right" = "Derecha";
 
 "preference.title.menu_show_profiles" = "Mostrar pestaÃ±a de Perfiles";
 "preference.detail.menu_show_profiles" = "Muestra la secciÃ³n Perfiles en la barra lateral.";
