@@ -44,22 +44,28 @@ extern NSMutableDictionary *prefDict;
 {
     [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
     [self changeDisplayModeForSize:size];
+    [coordinator animateAlongsideTransition:nil completion:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
+        AmethystApplyThemeToWindow(UIWindow.mainWindow);
+        AmethystApplyThemeToWindow(UIWindow.externalWindow);
+    }];
 }
 
 - (void)changeDisplayModeForSize:(CGSize)size {
     BOOL isPortrait = size.height > size.width;
-    if (self.preferredDisplayMode == 0 || self.displayMode != UISplitViewControllerDisplayModeSecondaryOnly) {
-        if(!getPrefBool(@"general.hidden_sidebar")) {
-            self.preferredDisplayMode = isPortrait ?
-                UISplitViewControllerDisplayModeOneOverSecondary :
-                UISplitViewControllerDisplayModeOneBesideSecondary;
-        } else {
-            self.preferredDisplayMode = UISplitViewControllerDisplayModeSecondaryOnly;
-        }
+    if(!getPrefBool(@"general.hidden_sidebar")) {
+        self.preferredDisplayMode = isPortrait ?
+            UISplitViewControllerDisplayModeOneOverSecondary :
+            UISplitViewControllerDisplayModeOneBesideSecondary;
+    } else {
+        self.preferredDisplayMode = UISplitViewControllerDisplayModeSecondaryOnly;
     }
     self.preferredSplitBehavior = isPortrait ?
         UISplitViewControllerSplitBehaviorOverlay :
         UISplitViewControllerSplitBehaviorTile;
+}
+
+- (void)applySidebarPreferences {
+    [self changeDisplayModeForSize:self.view.bounds.size];
 }
 
 - (void)dismissViewController {
