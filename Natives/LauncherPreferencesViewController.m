@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 #import "DBNumberedSlider.h"
 #import "HostManagerBridge.h"
@@ -14,11 +15,18 @@
 #import "ios_uikit_bridge.h"
 #import "utils.h"
 
-@interface LauncherPreferencesViewController()
+@interface LauncherPreferencesViewController()<UIDocumentPickerDelegate>
 @property(nonatomic) NSArray<NSString*> *rendererKeys, *rendererList;
 @end
 
 @implementation LauncherPreferencesViewController
+
+- (void)applyThemeChangesAndReload {
+    AmethystApplyThemeAppearance();
+    AmethystApplyThemeToWindow(UIWindow.mainWindow);
+    AmethystApplyThemeToWindow(UIWindow.externalWindow);
+    [self.tableView reloadData];
+}
 
 - (id)init {
     self = [super init];
@@ -28,6 +36,10 @@
 
 - (NSString *)imageName {
     return @"MenuSettings";
+}
+
+- (NSString *)themeBackgroundDirectory {
+    return [NSString stringWithFormat:@"%s/theme", getenv("POJAV_HOME")];
 }
 
 - (void)viewDidLoad
@@ -54,10 +66,7 @@
         return self.navigationController != nil;
     };
     void(^applyThemeChanges)(void) = ^void() {
-        AmethystApplyThemeAppearance();
-        AmethystApplyThemeToWindow(UIWindow.mainWindow);
-        AmethystApplyThemeToWindow(UIWindow.externalWindow);
-        [weakSelf.tableView reloadData];
+        [weakSelf applyThemeChangesAndReload];
     };
     self.prefContents = @[
         @[
@@ -222,6 +231,27 @@
         ], @[
             // Theme settings
             @{@"icon": @"paintpalette"},
+            @{@"key": @"theme_palette",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"paintbrush.pointed",
+              @"type": self.typePickField,
+              @"pickKeys": @[
+                  @"amethyst",
+                  @"midnight",
+                  @"warm",
+                  @"oled"
+              ],
+              @"pickList": @[
+                  localize(@"preference.pick.theme_palette.amethyst", nil),
+                  localize(@"preference.pick.theme_palette.midnight", nil),
+                  localize(@"preference.pick.theme_palette.warm", nil),
+                  localize(@"preference.pick.theme_palette.oled", nil)
+              ],
+              @"action": ^(NSString *value){
+                  applyThemeChanges();
+              }
+            },
             @{@"key": @"theme_accent",
               @"section": @"general",
               @"hasDetail": @YES,
@@ -267,6 +297,44 @@
                   localize(@"preference.pick.theme_mode.dark", nil)
               ],
               @"action": ^(NSString *value){
+                  applyThemeChanges();
+              }
+            },
+            @{@"key": @"theme_background_image",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"photo.on.rectangle",
+              @"type": self.typeButton,
+              @"skipActionAlert": @YES,
+              @"action": ^void(){
+                  [weakSelf actionPickThemeBackgroundImage];
+              }
+            },
+            @{@"key": @"theme_background_clear",
+              @"icon": @"trash",
+              @"type": self.typeButton,
+              @"destructive": @YES,
+              @"skipActionAlert": @YES,
+              @"enableCondition": ^BOOL(){
+                  NSString *path = getPrefObject(@"general.theme_background_image");
+                  return [path isKindOfClass:NSString.class] && path.length > 0;
+              },
+              @"action": ^void(){
+                  [weakSelf actionClearThemeBackgroundImage];
+              }
+            },
+            @{@"key": @"theme_background_opacity",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"slider.horizontal.3",
+              @"type": self.typeSlider,
+              @"enableCondition": ^BOOL(){
+                  NSString *path = getPrefObject(@"general.theme_background_image");
+                  return [path isKindOfClass:NSString.class] && path.length > 0;
+              },
+              @"min": @(0),
+              @"max": @(100),
+              @"action": ^(int value){
                   applyThemeChanges();
               }
             }
@@ -353,8 +421,13 @@
                 @"hasDetail": @YES,
                 @"type": self.typeSwitch,
             },
-            @{@"key": @"gesture_mouse",
-                @"icon": @"cursorarrow.click",
+            @{@"key": @"gesture_mouse_tap_hold",
+                @"icon": @"hand.tap",
+                @"hasDetail": @YES,
+                @"type": self.typeSwitch,
+            },
+            @{@"key": @"gesture_mouse_scroll",
+                @"icon": @"arrow.up.and.down",
                 @"hasDetail": @YES,
                 @"type": self.typeSwitch,
             },
@@ -559,6 +632,59 @@
         return nil;
     }
     return footer;
+}
+
+- (void)actionPickThemeBackgroundImage {
+    UTType *imageType = [UTType typeWithIdentifier:@"public.image"];
+    if (!imageType) {
+        showDialog(localize(@"Error", nil), @"Image picker is unavailable.");
+        return;
+    }
+    UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc]
+        initForOpeningContentTypes:@[imageType] asCopy:YES];
+    documentPicker.delegate = self;
+    documentPicker.modalPresentationStyle = UIModalPresentationFormSheet;
+    [self presentViewController:documentPicker animated:YES completion:nil];
+}
+
+- (void)actionClearThemeBackgroundImage {
+    NSString *currentPath = getPrefObject(@"general.theme_background_image");
+    if ([currentPath isKindOfClass:NSString.class] && currentPath.length > 0) {
+        [NSFileManager.defaultManager removeItemAtPath:currentPath error:nil];
+    }
+    setPrefObject(@"general.theme_background_image", @"");
+    [self applyThemeChangesAndReload];
+}
+
+- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentAtURL:(NSURL *)url {
+    [url startAccessingSecurityScopedResource];
+
+    NSString *themeDir = [self themeBackgroundDirectory];
+    [NSFileManager.defaultManager createDirectoryAtPath:themeDir
+                            withIntermediateDirectories:YES
+                                             attributes:nil
+                                                  error:nil];
+
+    NSString *extension = url.pathExtension.length > 0 ? url.pathExtension : @"png";
+    NSString *destPath = [themeDir stringByAppendingPathComponent:[NSString stringWithFormat:@"background.%@", extension]];
+
+    NSString *previousPath = getPrefObject(@"general.theme_background_image");
+    if ([previousPath isKindOfClass:NSString.class] && previousPath.length > 0 && ![previousPath isEqualToString:destPath]) {
+        [NSFileManager.defaultManager removeItemAtPath:previousPath error:nil];
+    }
+
+    [NSFileManager.defaultManager removeItemAtPath:destPath error:nil];
+    NSError *copyError = nil;
+    if (![NSFileManager.defaultManager copyItemAtPath:url.path toPath:destPath error:&copyError]) {
+        [url stopAccessingSecurityScopedResource];
+        showDialog(localize(@"Error", nil), copyError.localizedDescription);
+        return;
+    }
+
+    [url stopAccessingSecurityScopedResource];
+
+    setPrefObject(@"general.theme_background_image", destPath);
+    [self applyThemeChangesAndReload];
 }
 
 @end
