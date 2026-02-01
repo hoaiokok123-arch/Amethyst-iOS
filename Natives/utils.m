@@ -220,11 +220,76 @@ static NSString *AmethystThemeBackgroundVideoPathForWindow(UIWindow *window) {
     return hasPortrait ? portrait : (hasLandscape ? landscape : nil);
 }
 
+static NSString *AmethystThemeBackgroundRotationKeyForWindow(UIWindow *window) {
+    BOOL isLandscape = window.bounds.size.width > window.bounds.size.height;
+    NSString *prefKey = isLandscape ? @"general.theme_background_rotation_landscape"
+                                    : @"general.theme_background_rotation_portrait";
+    id value = getPrefObject(prefKey);
+    if ([value isKindOfClass:NSString.class] && [value length] > 0) {
+        return value;
+    }
+    id legacy = getPrefObject(@"general.theme_background_rotation");
+    if ([legacy isKindOfClass:NSString.class] && [legacy length] > 0) {
+        return legacy;
+    }
+    return isLandscape ? @"landscape" : @"portrait";
+}
+
+static UIInterfaceOrientation AmethystThemeInterfaceOrientation(UIWindow *window) {
+    if (@available(iOS 13.0, *)) {
+        UIInterfaceOrientation orientation = window.windowScene.interfaceOrientation;
+        if (orientation != UIInterfaceOrientationUnknown) {
+            return orientation;
+        }
+    }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    return UIApplication.sharedApplication.statusBarOrientation;
+#pragma clang diagnostic pop
+}
+
+static UIImageOrientation AmethystThemeBackgroundImageOrientationForWindow(UIWindow *window) {
+    NSString *key = AmethystThemeBackgroundRotationKeyForWindow(window);
+    if ([key isEqualToString:@"portrait"]) {
+        return UIImageOrientationUp;
+    }
+    if ([key isEqualToString:@"landscape_left"]) {
+        return UIImageOrientationLeft;
+    }
+    if ([key isEqualToString:@"landscape_right"]) {
+        return UIImageOrientationRight;
+    }
+    if ([key isEqualToString:@"landscape"]) {
+        UIInterfaceOrientation orientation = AmethystThemeInterfaceOrientation(window);
+        if (orientation == UIInterfaceOrientationLandscapeLeft) {
+            return UIImageOrientationRight;
+        }
+        if (orientation == UIInterfaceOrientationLandscapeRight) {
+            return UIImageOrientationLeft;
+        }
+        if (window.bounds.size.width > window.bounds.size.height) {
+            return UIImageOrientationRight;
+        }
+        return UIImageOrientationUp;
+    }
+    return UIImageOrientationUp;
+}
+
+static UIImage *AmethystThemeImageWithOrientation(UIImage *image, UIImageOrientation orientation) {
+    if (!image || orientation == UIImageOrientationUp) {
+        return image;
+    }
+    return [UIImage imageWithCGImage:image.CGImage scale:image.scale orientation:orientation];
+}
+
 static BOOL AmethystThemeShouldUsePortraitOverlay(UIWindow *window, NSString *imagePath, UIImage *image) {
     if (!window || !imagePath || !image) {
         return NO;
     }
     if (window.bounds.size.width <= window.bounds.size.height) {
+        return NO;
+    }
+    if (![AmethystThemeBackgroundRotationKeyForWindow(window) isEqualToString:@"portrait"]) {
         return NO;
     }
     NSString *portrait = getPrefObject(@"general.theme_background_image");
@@ -796,8 +861,10 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
                 portraitView.contentMode = UIViewContentModeScaleAspectFit;
                 portraitView.hidden = NO;
             } else {
+                UIImageOrientation rotation = AmethystThemeBackgroundImageOrientationForWindow(window);
+                UIImage *displayImage = AmethystThemeImageWithOrientation(image, rotation);
                 portraitView.hidden = YES;
-                backgroundView.image = image;
+                backgroundView.image = displayImage;
                 backgroundView.contentMode = AmethystThemeBackgroundImageContentMode();
                 backgroundView.hidden = NO;
             }
