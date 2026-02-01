@@ -27,7 +27,7 @@ UIEdgeInsets insets;
     self.view.backgroundColor = AmethystThemeBackgroundColor();
     
     CGSize size = CGSizeMake(self.view.frame.size.width, self.view.frame.size.height);
-    insets = UIApplication.sharedApplication.windows.firstObject.safeAreaInsets;
+    insets = self.view.safeAreaInsets;
     
     NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:@"https://wiki.angelauramc.dev/patchnotes/changelogs/IOS.html"]];
 
@@ -97,6 +97,7 @@ UIEdgeInsets insets;
 }
 
 - (void)adjustWebViewForSize:(CGSize)size {
+    insets = self.view.safeAreaInsets;
     BOOL isPortrait = size.height > size.width;
     if (isPortrait) {
         webView.scrollView.contentInset = UIEdgeInsetsMake(self.navigationController.navigationBar.frame.size.height + insets.top, 0, self.navigationController.navigationBar.frame.size.height + insets.bottom, 0);
