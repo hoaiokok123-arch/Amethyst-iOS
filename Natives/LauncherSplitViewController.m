@@ -46,13 +46,16 @@ extern NSMutableDictionary *prefDict;
     [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
     [self changeDisplayModeForSize:size];
     [coordinator animateAlongsideTransition:nil completion:^(id<UIViewControllerTransitionCoordinatorContext>  _Nonnull context) {
+        AmethystApplyThemeAppearance();
         AmethystApplyThemeToWindow(UIWindow.mainWindow);
         AmethystApplyThemeToWindow(UIWindow.externalWindow);
+        [self.view setNeedsLayout];
     }];
 }
 
 - (void)changeDisplayModeForSize:(CGSize)size {
     BOOL isPortrait = size.height > size.width;
+    self.maximumPrimaryColumnWidth = size.width * 0.95;
     if(!getPrefBool(@"general.hidden_sidebar")) {
         self.preferredDisplayMode = isPortrait ?
             UISplitViewControllerDisplayModeOneOverSecondary :
