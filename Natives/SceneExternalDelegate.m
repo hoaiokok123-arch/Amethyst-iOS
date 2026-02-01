@@ -59,4 +59,11 @@ extern UIWindow *externalWindow;
     // to restore the scene back to its current state.
 }
 
+- (void)windowScene:(UIWindowScene *)windowScene
+didUpdateCoordinateSpace:(id<UICoordinateSpace>)previousCoordinateSpace
+ interfaceOrientation:(UIInterfaceOrientation)previousInterfaceOrientation
+   traitCollection:(UITraitCollection *)previousTraitCollection {
+    AmethystApplyThemeToWindow(self.window);
+}
+
 @end
