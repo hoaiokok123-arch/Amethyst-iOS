@@ -248,7 +248,7 @@ static UIInterfaceOrientation AmethystThemeInterfaceOrientation(UIWindow *window
 #pragma clang diagnostic pop
 }
 
-static UIImageOrientation AmethystThemeBackgroundImageOrientationForWindow(UIWindow *window) {
+static UIImageOrientation AmethystThemeBackgroundImageOrientationForWindow(UIWindow *window, UIImage *image) {
     NSString *key = AmethystThemeBackgroundRotationKeyForWindow(window);
     if ([key isEqualToString:@"portrait"]) {
         return UIImageOrientationUp;
@@ -260,6 +260,9 @@ static UIImageOrientation AmethystThemeBackgroundImageOrientationForWindow(UIWin
         return UIImageOrientationRight;
     }
     if ([key isEqualToString:@"landscape"]) {
+        if (image && image.size.width >= image.size.height) {
+            return UIImageOrientationUp;
+        }
         UIInterfaceOrientation orientation = AmethystThemeInterfaceOrientation(window);
         if (orientation == UIInterfaceOrientationLandscapeLeft) {
             return UIImageOrientationRight;
@@ -289,7 +292,8 @@ static BOOL AmethystThemeShouldUsePortraitOverlay(UIWindow *window, NSString *im
     if (window.bounds.size.width <= window.bounds.size.height) {
         return NO;
     }
-    if (![AmethystThemeBackgroundRotationKeyForWindow(window) isEqualToString:@"portrait"]) {
+    NSString *rotationKey = AmethystThemeBackgroundRotationKeyForWindow(window);
+    if ([rotationKey isEqualToString:@"landscape_left"] || [rotationKey isEqualToString:@"landscape_right"]) {
         return NO;
     }
     NSString *portrait = getPrefObject(@"general.theme_background_image");
@@ -861,7 +865,7 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
                 portraitView.contentMode = UIViewContentModeScaleAspectFit;
                 portraitView.hidden = NO;
             } else {
-                UIImageOrientation rotation = AmethystThemeBackgroundImageOrientationForWindow(window);
+                UIImageOrientation rotation = AmethystThemeBackgroundImageOrientationForWindow(window, image);
                 UIImage *displayImage = AmethystThemeImageWithOrientation(image, rotation);
                 portraitView.hidden = YES;
                 backgroundView.image = displayImage;
