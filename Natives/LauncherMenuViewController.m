@@ -276,15 +276,26 @@
         }
     }
 
-    cell.backgroundColor = AmethystThemeSurfaceColor();
-    cell.contentView.backgroundColor = AmethystThemeSurfaceColor();
+    cell.backgroundColor = AmethystThemeButtonBackgroundColor();
+    cell.contentView.backgroundColor = AmethystThemeButtonBackgroundColor();
     cell.textLabel.textColor = AmethystThemeTextPrimaryColor();
     if (self.showMenuIcons) {
         cell.imageView.tintColor = AmethystThemeAccentColor();
     }
     UIView *selectedBackground = [UIView new];
-    selectedBackground.backgroundColor = AmethystThemeSelectionColor();
+    selectedBackground.backgroundColor = AmethystThemeButtonSelectionColor();
     cell.selectedBackgroundView = selectedBackground;
+    if (AmethystThemeButtonOutlineEnabled()) {
+        cell.layer.borderWidth = 1.0 / UIScreen.mainScreen.scale;
+        cell.layer.borderColor = AmethystThemeButtonBorderColor().CGColor;
+        cell.layer.cornerRadius = 12.0;
+        cell.layer.masksToBounds = YES;
+    } else {
+        cell.layer.borderWidth = 0.0;
+        cell.layer.borderColor = nil;
+        cell.layer.cornerRadius = 0.0;
+        cell.layer.masksToBounds = NO;
+    }
     return cell;
 }
 
