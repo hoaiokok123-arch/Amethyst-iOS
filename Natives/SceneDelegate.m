@@ -55,4 +55,11 @@ extern UIWindow *mainWindow;
     CallbackBridge_pauseGameIfNeed();
 }
 
+- (void)windowScene:(UIWindowScene *)windowScene
+didUpdateCoordinateSpace:(id<UICoordinateSpace>)previousCoordinateSpace
+ interfaceOrientation:(UIInterfaceOrientation)previousInterfaceOrientation
+   traitCollection:(UITraitCollection *)previousTraitCollection {
+    AmethystApplyThemeToWindow(self.window);
+}
+
 @end
