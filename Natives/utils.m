@@ -220,7 +220,7 @@ static NSString *AmethystThemeBackgroundVideoPathForWindow(UIWindow *window) {
     return hasPortrait ? portrait : (hasLandscape ? landscape : nil);
 }
 
-static BOOL AmethystThemeShouldRotateImageForLandscape(UIWindow *window, NSString *imagePath, UIImage *image) {
+static BOOL AmethystThemeShouldUsePortraitOverlay(UIWindow *window, NSString *imagePath, UIImage *image) {
     if (!window || !imagePath || !image) {
         return NO;
     }
@@ -240,13 +240,6 @@ static BOOL AmethystThemeShouldRotateImageForLandscape(UIWindow *window, NSStrin
         return NO;
     }
     return image.size.height >= image.size.width;
-}
-
-static UIImage *AmethystThemeRotatedImageForLandscape(UIImage *image) {
-    if (!image) {
-        return nil;
-    }
-    return [UIImage imageWithCGImage:image.CGImage scale:image.scale orientation:UIImageOrientationRight];
 }
 
 static CGFloat AmethystThemeBackgroundOpacity(void) {
@@ -628,6 +621,7 @@ static char kAmethystThemeBackgroundVideoPathKey;
 static char kAmethystThemeBackgroundVideoMutedKey;
 static char kAmethystThemeBackgroundVideoLoopKey;
 static char kAmethystThemeBackgroundImageViewKey;
+static char kAmethystThemeBackgroundPortraitViewKey;
 static char kAmethystThemeBackgroundBlurViewKey;
 static char kAmethystThemeBackgroundDimViewKey;
 
@@ -663,6 +657,26 @@ static UIImageView *AmethystThemeBackgroundImageView(UIWindow *window) {
             [window insertSubview:view atIndex:0];
         }
         objc_setAssociatedObject(window, &kAmethystThemeBackgroundImageViewKey, view, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return view;
+}
+
+static UIImageView *AmethystThemeBackgroundPortraitView(UIWindow *window) {
+    UIImageView *view = objc_getAssociatedObject(window, &kAmethystThemeBackgroundPortraitViewKey);
+    if (!view) {
+        view = [[UIImageView alloc] initWithFrame:window.bounds];
+        view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        view.contentMode = UIViewContentModeScaleAspectFit;
+        view.userInteractionEnabled = NO;
+        view.clipsToBounds = YES;
+        view.hidden = YES;
+        UIView *backgroundView = objc_getAssociatedObject(window, &kAmethystThemeBackgroundImageViewKey);
+        if (backgroundView) {
+            [window insertSubview:view aboveSubview:backgroundView];
+        } else {
+            [window insertSubview:view atIndex:0];
+        }
+        objc_setAssociatedObject(window, &kAmethystThemeBackgroundPortraitViewKey, view, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     return view;
 }
@@ -709,9 +723,11 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
     NSString *videoPath = AmethystThemeBackgroundVideoPathForWindow(window);
     AmethystBackgroundVideoView *videoView = AmethystThemeBackgroundVideoView(window);
     UIImageView *backgroundView = AmethystThemeBackgroundImageView(window);
+    UIImageView *portraitView = AmethystThemeBackgroundPortraitView(window);
     videoView.contentMode = AmethystThemeBackgroundImageContentMode();
     ((AVPlayerLayer *)videoView.layer).videoGravity = AmethystThemeBackgroundVideoGravity();
     backgroundView.contentMode = AmethystThemeBackgroundImageContentMode();
+    portraitView.contentMode = UIViewContentModeScaleAspectFit;
     BOOL hasVideo = NO;
     if (videoPath && [NSFileManager.defaultManager fileExistsAtPath:videoPath]) {
         hasVideo = YES;
@@ -770,22 +786,31 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
     if (imagePath) {
         UIImage *image = [UIImage imageWithContentsOfFile:imagePath];
         if (image) {
-            UIViewContentMode imageContentMode = AmethystThemeBackgroundImageContentMode();
-            if (AmethystThemeShouldRotateImageForLandscape(window, imagePath, image)) {
-                image = AmethystThemeRotatedImageForLandscape(image);
-                imageContentMode = UIViewContentModeScaleAspectFill;
+            BOOL usePortraitOverlay = AmethystThemeShouldUsePortraitOverlay(window, imagePath, image);
+            if (usePortraitOverlay) {
+                backgroundView.image = image;
+                backgroundView.contentMode = UIViewContentModeScaleAspectFill;
+                backgroundView.hidden = NO;
+
+                portraitView.image = image;
+                portraitView.contentMode = UIViewContentModeScaleAspectFit;
+                portraitView.hidden = NO;
+            } else {
+                portraitView.hidden = YES;
+                backgroundView.image = image;
+                backgroundView.contentMode = AmethystThemeBackgroundImageContentMode();
+                backgroundView.hidden = NO;
             }
-            backgroundView.image = image;
-            backgroundView.contentMode = imageContentMode;
-            backgroundView.hidden = NO;
             [window sendSubviewToBack:backgroundView];
         } else {
             backgroundView.hidden = YES;
+            portraitView.hidden = YES;
         }
     } else {
         backgroundView.hidden = YES;
+        portraitView.hidden = YES;
     }
-    BOOL hasMedia = hasVideo || !backgroundView.hidden;
+    BOOL hasMedia = hasVideo || !backgroundView.hidden || !portraitView.hidden;
     UIVisualEffectView *blurView = AmethystThemeBackgroundBlurView(window);
     CGFloat blurOpacity = hasMedia ? AmethystThemeBackgroundBlurOpacity() : 0.0;
     if (blurOpacity > 0.001) {
@@ -798,12 +823,18 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
     } else {
         blurView.hidden = YES;
     }
+    if (!portraitView.hidden) {
+        UIView *anchorView = !blurView.hidden ? blurView : (!backgroundView.hidden ? backgroundView : videoView);
+        if (anchorView && portraitView.superview == window) {
+            [window insertSubview:portraitView aboveSubview:anchorView];
+        }
+    }
     UIView *dimView = AmethystThemeBackgroundDimView(window);
     CGFloat dimOpacity = hasMedia ? AmethystThemeBackgroundDimOpacity() : 0.0;
     if (dimOpacity > 0.001) {
         dimView.hidden = NO;
         dimView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:dimOpacity];
-        UIView *anchorView = !blurView.hidden ? blurView : (!backgroundView.hidden ? backgroundView : videoView);
+        UIView *anchorView = !portraitView.hidden ? portraitView : (!blurView.hidden ? blurView : (!backgroundView.hidden ? backgroundView : videoView));
         if (anchorView && dimView.superview == window) {
             [window insertSubview:dimView aboveSubview:anchorView];
         }
