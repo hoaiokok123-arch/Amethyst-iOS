@@ -146,6 +146,25 @@ BOOL AmethystThemeButtonOutlineEnabled(void) {
     return getPrefBool(@"general.theme_button_outline");
 }
 
+CGFloat AmethystThemeButtonCornerRadius(void) {
+    CGFloat radius = 12.0;
+    id value = getPrefObject(@"general.theme_button_corner_radius");
+    if ([value respondsToSelector:@selector(doubleValue)]) {
+        radius = [value doubleValue];
+    }
+    return clamp(radius, 0.0, 40.0);
+}
+
+CGFloat AmethystThemeButtonBorderWidth(void) {
+    CGFloat width = 1.0;
+    id value = getPrefObject(@"general.theme_button_border_width");
+    if ([value respondsToSelector:@selector(doubleValue)]) {
+        width = [value doubleValue];
+    }
+    width = clamp(width, 0.0, 10.0);
+    return width / UIScreen.mainScreen.scale;
+}
+
 static NSString *AmethystThemeBackgroundImagePath(void) {
     id value = getPrefObject(@"general.theme_background_image");
     if (![value isKindOfClass:NSString.class] || [value length] == 0) {
@@ -189,6 +208,48 @@ static CGFloat AmethystThemeBackgroundOpacity(void) {
         return 1.0;
     }
     return alpha;
+}
+
+static CGFloat AmethystThemeBackgroundBlurOpacity(void) {
+    CGFloat alpha = 0.0;
+    id value = getPrefObject(@"general.theme_background_blur");
+    if ([value respondsToSelector:@selector(doubleValue)]) {
+        alpha = [value doubleValue] / 100.0;
+    }
+    alpha = clamp(alpha, 0.0, 1.0);
+    if (!AmethystThemeBackgroundImagePath() && !AmethystThemeHasBackgroundVideo()) {
+        return 0.0;
+    }
+    return alpha;
+}
+
+static CGFloat AmethystThemeBackgroundDimOpacity(void) {
+    CGFloat alpha = 0.0;
+    id value = getPrefObject(@"general.theme_background_dim");
+    if ([value respondsToSelector:@selector(doubleValue)]) {
+        alpha = [value doubleValue] / 100.0;
+    }
+    alpha = clamp(alpha, 0.0, 1.0);
+    if (!AmethystThemeBackgroundImagePath() && !AmethystThemeHasBackgroundVideo()) {
+        return 0.0;
+    }
+    return alpha;
+}
+
+static BOOL AmethystThemeBackgroundVideoMuted(void) {
+    id value = getPrefObject(@"general.theme_background_video_mute");
+    if ([value respondsToSelector:@selector(boolValue)]) {
+        return [value boolValue];
+    }
+    return YES;
+}
+
+static BOOL AmethystThemeBackgroundVideoLoopEnabled(void) {
+    id value = getPrefObject(@"general.theme_background_video_loop");
+    if ([value respondsToSelector:@selector(boolValue)]) {
+        return [value boolValue];
+    }
+    return YES;
 }
 
 BOOL getEntitlementValue(NSString *key) {
@@ -467,7 +528,11 @@ static char kAmethystThemeBackgroundVideoViewKey;
 static char kAmethystThemeBackgroundVideoPlayerKey;
 static char kAmethystThemeBackgroundVideoLooperKey;
 static char kAmethystThemeBackgroundVideoPathKey;
+static char kAmethystThemeBackgroundVideoMutedKey;
+static char kAmethystThemeBackgroundVideoLoopKey;
 static char kAmethystThemeBackgroundImageViewKey;
+static char kAmethystThemeBackgroundBlurViewKey;
+static char kAmethystThemeBackgroundDimViewKey;
 
 static AmethystBackgroundVideoView *AmethystThemeBackgroundVideoView(UIWindow *window) {
     AmethystBackgroundVideoView *view = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoViewKey);
@@ -505,6 +570,40 @@ static UIImageView *AmethystThemeBackgroundImageView(UIWindow *window) {
     return view;
 }
 
+static UIVisualEffectView *AmethystThemeBackgroundBlurView(UIWindow *window) {
+    UIVisualEffectView *view = objc_getAssociatedObject(window, &kAmethystThemeBackgroundBlurViewKey);
+    if (!view) {
+        UIBlurEffect *effect = nil;
+        if (@available(iOS 13.0, *)) {
+            effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
+        } else {
+            effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleLight];
+        }
+        view = [[UIVisualEffectView alloc] initWithEffect:effect];
+        view.frame = window.bounds;
+        view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        view.userInteractionEnabled = NO;
+        view.hidden = YES;
+        [window insertSubview:view atIndex:0];
+        objc_setAssociatedObject(window, &kAmethystThemeBackgroundBlurViewKey, view, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return view;
+}
+
+static UIView *AmethystThemeBackgroundDimView(UIWindow *window) {
+    UIView *view = objc_getAssociatedObject(window, &kAmethystThemeBackgroundDimViewKey);
+    if (!view) {
+        view = [[UIView alloc] initWithFrame:window.bounds];
+        view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        view.userInteractionEnabled = NO;
+        view.hidden = YES;
+        view.backgroundColor = UIColor.clearColor;
+        [window insertSubview:view atIndex:0];
+        objc_setAssociatedObject(window, &kAmethystThemeBackgroundDimViewKey, view, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return view;
+}
+
 void AmethystApplyThemeToWindow(UIWindow *window) {
     if (!window) return;
     if (@available(iOS 13.0, *)) {
@@ -519,22 +618,35 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
         AVPlayerLayer *layer = (AVPlayerLayer *)videoView.layer;
         NSString *currentPath = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoPathKey);
         AVQueuePlayer *player = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoPlayerKey);
-        if (!currentPath || ![currentPath isEqualToString:videoPath] || !player) {
+        BOOL muted = AmethystThemeBackgroundVideoMuted();
+        BOOL loop = AmethystThemeBackgroundVideoLoopEnabled();
+        NSNumber *prevMuted = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoMutedKey);
+        NSNumber *prevLoop = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoLoopKey);
+        BOOL needsReload = !currentPath || ![currentPath isEqualToString:videoPath] || !player ||
+            (prevMuted && prevMuted.boolValue != muted) ||
+            (prevLoop && prevLoop.boolValue != loop);
+        if (needsReload) {
             AVPlayerItem *item = [AVPlayerItem playerItemWithURL:[NSURL fileURLWithPath:videoPath]];
             AVQueuePlayer *newPlayer = [AVQueuePlayer queuePlayerWithItems:@[item]];
-            newPlayer.muted = YES;
-            newPlayer.actionAtItemEnd = AVPlayerActionAtItemEndNone;
+            newPlayer.muted = muted;
+            newPlayer.actionAtItemEnd = loop ? AVPlayerActionAtItemEndNone : AVPlayerActionAtItemEndPause;
 
-            AVPlayerLooper *looper = [AVPlayerLooper playerLooperWithPlayer:newPlayer templateItem:item];
+            AVPlayerLooper *looper = nil;
+            if (loop) {
+                looper = [AVPlayerLooper playerLooperWithPlayer:newPlayer templateItem:item];
+            }
             objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoPlayerKey, newPlayer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoLooperKey, looper, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoPathKey, videoPath, OBJC_ASSOCIATION_COPY_NONATOMIC);
+            objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoMutedKey, @(muted), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoLoopKey, @(loop), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             layer.player = newPlayer;
             [newPlayer play];
         } else {
             if (layer.player != player) {
                 layer.player = player;
             }
+            player.muted = muted;
             [player play];
         }
         videoView.hidden = NO;
@@ -550,6 +662,8 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
         objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoPlayerKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoLooperKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoPathKey, nil, OBJC_ASSOCIATION_COPY_NONATOMIC);
+        objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoMutedKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoLoopKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
 
     NSString *imagePath = hasVideo ? nil : AmethystThemeBackgroundImagePath();
@@ -564,6 +678,31 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
         }
     } else {
         backgroundView.hidden = YES;
+    }
+    BOOL hasMedia = hasVideo || !backgroundView.hidden;
+    UIVisualEffectView *blurView = AmethystThemeBackgroundBlurView(window);
+    CGFloat blurOpacity = hasMedia ? AmethystThemeBackgroundBlurOpacity() : 0.0;
+    if (blurOpacity > 0.001) {
+        blurView.hidden = NO;
+        blurView.alpha = blurOpacity;
+        UIView *anchorView = !backgroundView.hidden ? backgroundView : videoView;
+        if (anchorView && blurView.superview == window) {
+            [window insertSubview:blurView aboveSubview:anchorView];
+        }
+    } else {
+        blurView.hidden = YES;
+    }
+    UIView *dimView = AmethystThemeBackgroundDimView(window);
+    CGFloat dimOpacity = hasMedia ? AmethystThemeBackgroundDimOpacity() : 0.0;
+    if (dimOpacity > 0.001) {
+        dimView.hidden = NO;
+        dimView.backgroundColor = [UIColor colorWithWhite:0.0 alpha:dimOpacity];
+        UIView *anchorView = !blurView.hidden ? blurView : (!backgroundView.hidden ? backgroundView : videoView);
+        if (anchorView && dimView.superview == window) {
+            [window insertSubview:dimView aboveSubview:anchorView];
+        }
+    } else {
+        dimView.hidden = YES;
     }
     window.tintColor = AmethystThemeAccentColor();
     window.backgroundColor = AmethystThemeBackgroundColor();
