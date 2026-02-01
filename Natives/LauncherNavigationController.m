@@ -154,6 +154,7 @@ static void *ProgressObserverContext = &ProgressObserverContext;
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
     [self layoutToolbarContent];
+    [sidebarViewController updateAccountInfo];
 }
 
 - (void)setViewControllers:(NSArray<UIViewController *> *)viewControllers animated:(BOOL)animated {
@@ -540,11 +541,6 @@ static void *ProgressObserverContext = &ProgressObserverContext;
 
 - (BOOL)prefersHomeIndicatorAutoHidden {
     return YES;
-}
-
-- (void)viewDidLayoutSubviews {
-    [super viewDidLayoutSubviews];
-    [sidebarViewController updateAccountInfo];
 }
 
 @end
