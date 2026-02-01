@@ -210,6 +210,18 @@
     self.showMenuModInstaller = getPrefBool(@"general.menu_show_mod_installer");
     self.showMenuSendLogs = getPrefBool(@"general.menu_show_send_logs");
 
+    self.view.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.tintColor = AmethystThemeAccentColor();
+    if (self.toolbarItems.count > 1) {
+        self.toolbarItems[1].tintColor = AmethystThemeTextSecondaryColor();
+    }
+    if (self.accountButton) {
+        self.accountButton.tintColor = AmethystThemeAccentColor();
+        [self.accountButton setTitleColor:AmethystThemeTextPrimaryColor() forState:UIControlStateNormal];
+        [self.accountButton setTitleColor:AmethystThemeTextSecondaryColor() forState:UIControlStateHighlighted];
+    }
+
     self.tableView.rowHeight = self.compactMenu ? 44.0 : 56.0;
     [self rebuildMenuOptions];
 
@@ -288,9 +300,17 @@
         }
     }
 
-    cell.backgroundColor = AmethystThemeButtonBackgroundColor();
-    cell.contentView.backgroundColor = AmethystThemeButtonBackgroundColor();
+    UIColor *surfaceColor = AmethystThemeButtonBackgroundColor();
+    if (@available(iOS 14.0, *)) {
+        UIBackgroundConfiguration *background = [UIBackgroundConfiguration clearConfiguration];
+        background.backgroundColor = surfaceColor;
+        cell.backgroundConfiguration = background;
+    } else {
+        cell.backgroundColor = surfaceColor;
+        cell.contentView.backgroundColor = surfaceColor;
+    }
     cell.textLabel.textColor = AmethystThemeTextPrimaryColor();
+    cell.textLabel.backgroundColor = UIColor.clearColor;
     if (self.showMenuIcons) {
         cell.imageView.tintColor = AmethystThemeAccentColor();
     }
