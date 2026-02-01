@@ -20,6 +20,7 @@
 @property(nonatomic) NSArray<NSString*> *rendererKeys, *rendererList;
 @property(nonatomic) BOOL pickingThemeVideo;
 @property(nonatomic) BOOL pickingThemeVideoLandscape;
+@property(nonatomic) BOOL pickingThemeImageLandscape;
 @end
 
 @implementation LauncherPreferencesViewController
@@ -82,9 +83,16 @@
             [(LauncherSplitViewController *)weakSelf.splitViewController applySidebarPreferences];
         }
     };
-    BOOL(^hasThemeImage)(void) = ^BOOL() {
+    BOOL(^hasThemeImagePortrait)(void) = ^BOOL() {
         NSString *path = getPrefObject(@"general.theme_background_image");
         return [path isKindOfClass:NSString.class] && path.length > 0;
+    };
+    BOOL(^hasThemeImageLandscape)(void) = ^BOOL() {
+        NSString *path = getPrefObject(@"general.theme_background_image_landscape");
+        return [path isKindOfClass:NSString.class] && path.length > 0;
+    };
+    BOOL(^hasThemeImage)(void) = ^BOOL() {
+        return hasThemeImagePortrait() || hasThemeImageLandscape();
     };
     BOOL(^hasThemeVideo)(void) = ^BOOL() {
         NSString *videoPath = getPrefObject(@"general.theme_background_video");
@@ -475,6 +483,16 @@
                   [weakSelf actionPickThemeBackgroundImage];
               }
             },
+            @{@"key": @"theme_background_image_landscape",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"rectangle.landscape",
+              @"type": self.typeButton,
+              @"skipActionAlert": @YES,
+              @"action": ^void(){
+                  [weakSelf actionPickThemeBackgroundImageLandscape];
+              }
+            },
             @{@"key": @"theme_background_video",
               @"section": @"general",
               @"hasDetail": @YES,
@@ -520,9 +538,19 @@
               @"type": self.typeButton,
               @"destructive": @YES,
               @"skipActionAlert": @YES,
-              @"enableCondition": hasThemeImage,
+              @"enableCondition": hasThemeImagePortrait,
               @"action": ^void(){
                   [weakSelf actionClearThemeBackgroundImage];
+              }
+            },
+            @{@"key": @"theme_background_clear_landscape",
+              @"icon": @"trash",
+              @"type": self.typeButton,
+              @"destructive": @YES,
+              @"skipActionAlert": @YES,
+              @"enableCondition": hasThemeImageLandscape,
+              @"action": ^void(){
+                  [weakSelf actionClearThemeBackgroundImageLandscape];
               }
             },
             @{@"key": @"theme_background_clear_video",
@@ -903,6 +931,23 @@
 - (void)actionPickThemeBackgroundImage {
     self.pickingThemeVideo = NO;
     self.pickingThemeVideoLandscape = NO;
+    self.pickingThemeImageLandscape = NO;
+    UTType *imageType = [UTType typeWithIdentifier:@"public.image"];
+    if (!imageType) {
+        showDialog(localize(@"Error", nil), @"Image picker is unavailable.");
+        return;
+    }
+    UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc]
+        initForOpeningContentTypes:@[imageType] asCopy:YES];
+    documentPicker.delegate = self;
+    documentPicker.modalPresentationStyle = UIModalPresentationFormSheet;
+    [self presentViewController:documentPicker animated:YES completion:nil];
+}
+
+- (void)actionPickThemeBackgroundImageLandscape {
+    self.pickingThemeVideo = NO;
+    self.pickingThemeVideoLandscape = NO;
+    self.pickingThemeImageLandscape = YES;
     UTType *imageType = [UTType typeWithIdentifier:@"public.image"];
     if (!imageType) {
         showDialog(localize(@"Error", nil), @"Image picker is unavailable.");
@@ -918,6 +963,7 @@
 - (void)actionPickThemeBackgroundVideo {
     self.pickingThemeVideo = YES;
     self.pickingThemeVideoLandscape = NO;
+    self.pickingThemeImageLandscape = NO;
     NSMutableArray<UTType *> *types = [NSMutableArray array];
     UTType *movieType = [UTType typeWithIdentifier:@"public.movie"];
     if (movieType) {
@@ -943,6 +989,7 @@
 - (void)actionPickThemeBackgroundVideoLandscape {
     self.pickingThemeVideo = YES;
     self.pickingThemeVideoLandscape = YES;
+    self.pickingThemeImageLandscape = NO;
     NSMutableArray<UTType *> *types = [NSMutableArray array];
     UTType *movieType = [UTType typeWithIdentifier:@"public.movie"];
     if (movieType) {
@@ -974,6 +1021,15 @@
     [self applyThemeChangesAndReload];
 }
 
+- (void)actionClearThemeBackgroundImageLandscape {
+    NSString *currentPath = getPrefObject(@"general.theme_background_image_landscape");
+    if ([currentPath isKindOfClass:NSString.class] && currentPath.length > 0) {
+        [NSFileManager.defaultManager removeItemAtPath:currentPath error:nil];
+    }
+    setPrefObject(@"general.theme_background_image_landscape", @"");
+    [self applyThemeChangesAndReload];
+}
+
 - (void)actionClearThemeBackgroundVideo {
     NSString *currentPath = getPrefObject(@"general.theme_background_video");
     if ([currentPath isKindOfClass:NSString.class] && currentPath.length > 0) {
@@ -995,14 +1051,17 @@
 - (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller {
     self.pickingThemeVideo = NO;
     self.pickingThemeVideoLandscape = NO;
+    self.pickingThemeImageLandscape = NO;
 }
 
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentAtURL:(NSURL *)url {
     [url startAccessingSecurityScopedResource];
     BOOL pickingVideo = self.pickingThemeVideo;
     BOOL pickingVideoLandscape = self.pickingThemeVideoLandscape;
+    BOOL pickingImageLandscape = self.pickingThemeImageLandscape;
     self.pickingThemeVideo = NO;
     self.pickingThemeVideoLandscape = NO;
+    self.pickingThemeImageLandscape = NO;
 
     NSString *themeDir = [self themeBackgroundDirectory];
     [NSFileManager.defaultManager createDirectoryAtPath:themeDir
@@ -1014,12 +1073,16 @@
     NSString *baseName = @"background";
     if (pickingVideo) {
         baseName = pickingVideoLandscape ? @"background-video-landscape" : @"background-video";
+    } else if (pickingImageLandscape) {
+        baseName = @"background-landscape";
     }
     NSString *destPath = [themeDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.%@", baseName, extension]];
 
     NSString *prefKey = @"general.theme_background_image";
     if (pickingVideo) {
         prefKey = pickingVideoLandscape ? @"general.theme_background_video_landscape" : @"general.theme_background_video";
+    } else if (pickingImageLandscape) {
+        prefKey = @"general.theme_background_image_landscape";
     }
     NSString *previousPath = getPrefObject(prefKey);
     if ([previousPath isKindOfClass:NSString.class] && previousPath.length > 0 && ![previousPath isEqualToString:destPath]) {
