@@ -6,6 +6,7 @@
 #import "DownloadProgressViewController.h"
 #import "JavaGUIViewController.h"
 #import "LauncherMenuViewController.h"
+#import "LauncherNewsViewController.h"
 #import "LauncherNavigationController.h"
 #import "LauncherPreferences.h"
 #import "MinecraftResourceDownloadTask.h"
@@ -24,7 +25,7 @@
 
 static void *ProgressObserverContext = &ProgressObserverContext;
 
-@interface LauncherNavigationController () <UIDocumentPickerDelegate, UIPickerViewDataSource, PLPickerViewDelegate, UIPopoverPresentationControllerDelegate> {
+@interface LauncherNavigationController () <UIDocumentPickerDelegate, UIPickerViewDataSource, PLPickerViewDelegate, UIPopoverPresentationControllerDelegate, UINavigationControllerDelegate> {
 }
 
 @property(nonatomic) MinecraftResourceDownloadTask* task;
@@ -32,6 +33,7 @@ static void *ProgressObserverContext = &ProgressObserverContext;
 @property(nonatomic) PLPickerView* versionPickerView;
 @property(nonatomic) UITextField* versionTextField;
 @property(nonatomic) int profileSelectedAt;
+@property(nonatomic) UIView *toolbarContentView;
 
 @end
 
@@ -40,6 +42,8 @@ static void *ProgressObserverContext = &ProgressObserverContext;
 - (void)viewDidLoad
 {
     [super viewDidLoad];
+
+    self.delegate = self;
 
     if ([self respondsToSelector:@selector(setNeedsUpdateOfScreenEdgesDeferringSystemGestures)]) {
         [self setNeedsUpdateOfScreenEdgesDeferringSystemGestures];
@@ -78,9 +82,16 @@ static void *ProgressObserverContext = &ProgressObserverContext;
     self.versionTextField.inputAccessoryView = versionPickToolbar;
     self.versionTextField.inputView = self.versionPickerView;
 
-    UIView *targetToolbar = self.toolbar;
-    targetToolbar.tintColor = AmethystThemeAccentColor();
-    targetToolbar.backgroundColor = AmethystThemeSurfaceColor();
+    if (!self.toolbarContentView) {
+        self.toolbarContentView = [[UIView alloc] initWithFrame:self.toolbar.bounds];
+        self.toolbarContentView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        self.toolbarContentView.userInteractionEnabled = YES;
+        [self.toolbar addSubview:self.toolbarContentView];
+    }
+
+    UIView *targetToolbar = self.toolbarContentView;
+    self.toolbar.tintColor = AmethystThemeAccentColor();
+    self.toolbar.backgroundColor = AmethystThemeSurfaceColor();
     [targetToolbar addSubview:self.versionTextField];
 
     self.progressViewMain = [[UIProgressView alloc] initWithFrame:CGRectMake(0, 0, self.toolbar.frame.size.width, 4)];
@@ -115,6 +126,9 @@ static void *ProgressObserverContext = &ProgressObserverContext;
     self.progressText.textColor = AmethystThemeTextSecondaryColor();
     [targetToolbar addSubview:self.progressText];
 
+    [self updateToolbarVisibilityForViewController:self.topViewController animated:NO];
+    [self layoutToolbarContent];
+
     [self fetchRemoteVersionList];
     [NSNotificationCenter.defaultCenter addObserver:self
         selector:@selector(receiveNotification:) 
@@ -134,6 +148,62 @@ static void *ProgressObserverContext = &ProgressObserverContext;
             }
         };
         [BaseAuthenticator.current refreshTokenWithCallback:callback];
+    }
+}
+
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    [self layoutToolbarContent];
+}
+
+- (void)setViewControllers:(NSArray<UIViewController *> *)viewControllers animated:(BOOL)animated {
+    [super setViewControllers:viewControllers animated:animated];
+    [self updateToolbarVisibilityForViewController:self.topViewController animated:NO];
+    [self layoutToolbarContent];
+}
+
+- (void)navigationController:(UINavigationController *)navigationController
+       didShowViewController:(UIViewController *)viewController
+                    animated:(BOOL)animated {
+    [self updateToolbarVisibilityForViewController:viewController animated:animated];
+    [self layoutToolbarContent];
+}
+
+- (BOOL)shouldShowLauncherToolbarForViewController:(UIViewController *)viewController {
+    return [viewController isKindOfClass:LauncherNewsViewController.class];
+}
+
+- (void)updateToolbarVisibilityForViewController:(UIViewController *)viewController animated:(BOOL)animated {
+    BOOL shouldShow = [self shouldShowLauncherToolbarForViewController:viewController];
+    [self setToolbarHidden:!shouldShow animated:animated];
+    self.toolbarContentView.hidden = !shouldShow;
+}
+
+- (void)layoutToolbarContent {
+    if (self.toolbarHidden || !self.toolbarContentView) {
+        return;
+    }
+
+    UIEdgeInsets safeInsets = self.toolbar.safeAreaInsets;
+    CGFloat toolbarWidth = self.toolbar.bounds.size.width - safeInsets.left - safeInsets.right;
+    CGFloat toolbarHeight = self.toolbar.bounds.size.height;
+    CGFloat padding = 4.0;
+    CGFloat fieldHeight = MAX(0.0, toolbarHeight - padding * 2.0);
+    CGFloat playWidth = MAX(88.0, toolbarWidth * 0.2);
+    if (playWidth > toolbarWidth - padding * 2.0) {
+        playWidth = MAX(0.0, toolbarWidth - padding * 2.0);
+    }
+    CGFloat fieldWidth = MAX(0.0, toolbarWidth - playWidth - padding * 3.0);
+    CGFloat originX = safeInsets.left + padding;
+
+    self.versionTextField.frame = CGRectMake(originX, padding, fieldWidth, fieldHeight);
+    self.buttonInstall.frame = CGRectMake(originX + fieldWidth + padding, padding, playWidth, fieldHeight);
+    self.progressText.frame = self.versionTextField.frame;
+    self.progressViewMain.frame = CGRectMake(safeInsets.left, 0, toolbarWidth, 4);
+
+    if (self.versionTextField.rightView) {
+        CGFloat rightSize = self.versionTextField.frame.size.height * 0.9;
+        self.versionTextField.rightView.frame = CGRectMake(0, 0, rightSize, rightSize);
     }
 }
 
