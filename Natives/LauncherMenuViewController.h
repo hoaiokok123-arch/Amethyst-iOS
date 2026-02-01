@@ -17,6 +17,7 @@
 @property(nonatomic) BOOL isInitialVc;
 
 - (void)restoreHighlightedSelection;
+- (void)applyMenuPreferences;
 - (void)selectAccount:(UIButton *)sender;
 - (void)updateAccountInfo;
 - (UIBarButtonItem *)drawAccountButton;
