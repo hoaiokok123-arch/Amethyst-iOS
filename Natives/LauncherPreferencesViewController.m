@@ -631,6 +631,50 @@
               @"action": ^(NSString *value){
                   applyThemeChanges();
               }
+            },
+            @{@"key": @"theme_background_rotation_portrait",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"rotate.right",
+              @"type": self.typePickField,
+              @"enableCondition": hasThemeImage,
+              @"pickKeys": @[
+                  @"portrait",
+                  @"landscape",
+                  @"landscape_left",
+                  @"landscape_right"
+              ],
+              @"pickList": @[
+                  localize(@"preference.pick.theme_background_rotation.portrait", nil),
+                  localize(@"preference.pick.theme_background_rotation.landscape", nil),
+                  localize(@"preference.pick.theme_background_rotation.left", nil),
+                  localize(@"preference.pick.theme_background_rotation.right", nil)
+              ],
+              @"action": ^(NSString *value){
+                  applyThemeChanges();
+              }
+            },
+            @{@"key": @"theme_background_rotation_landscape",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"rotate.right",
+              @"type": self.typePickField,
+              @"enableCondition": hasThemeImage,
+              @"pickKeys": @[
+                  @"portrait",
+                  @"landscape",
+                  @"landscape_left",
+                  @"landscape_right"
+              ],
+              @"pickList": @[
+                  localize(@"preference.pick.theme_background_rotation.portrait", nil),
+                  localize(@"preference.pick.theme_background_rotation.landscape", nil),
+                  localize(@"preference.pick.theme_background_rotation.left", nil),
+                  localize(@"preference.pick.theme_background_rotation.right", nil)
+              ],
+              @"action": ^(NSString *value){
+                  applyThemeChanges();
+              }
             }
         ], @[
             // Video and renderer settings
