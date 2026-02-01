@@ -33,6 +33,7 @@
     self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeInteractive;
     self.view.backgroundColor = AmethystThemeBackgroundColor();
     self.tableView.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.backgroundView = nil;
     self.tableView.separatorColor = AmethystThemeSeparatorColor();
     if (self.prefSections) {
         self.prefSectionsVisibility = [[NSMutableArray<NSNumber *> alloc] initWithCapacity:self.prefSections.count];
@@ -177,8 +178,18 @@
     if (cell.detailTextLabel && cell.detailTextLabel.textColor == nil) {
         cell.detailTextLabel.textColor = AmethystThemeTextSecondaryColor();
     }
-    cell.backgroundColor = AmethystThemeSurfaceColor();
-    cell.contentView.backgroundColor = AmethystThemeSurfaceColor();
+    UIColor *surfaceColor = AmethystThemeSurfaceColor();
+    cell.backgroundView = nil;
+    if (@available(iOS 14.0, *)) {
+        UIBackgroundConfiguration *background = [UIBackgroundConfiguration clearConfiguration];
+        background.backgroundColor = surfaceColor;
+        cell.backgroundConfiguration = background;
+    } else {
+        cell.backgroundColor = surfaceColor;
+        cell.contentView.backgroundColor = surfaceColor;
+    }
+    cell.textLabel.backgroundColor = UIColor.clearColor;
+    cell.detailTextLabel.backgroundColor = UIColor.clearColor;
     UIView *selectedBackground = [UIView new];
     selectedBackground.backgroundColor = AmethystThemeSelectionColor();
     cell.selectedBackgroundView = selectedBackground;
@@ -285,11 +296,17 @@
 
 - (void)sliderMoved:(DBNumberedSlider *)sender {
     [self checkWarn:sender];
+    NSDictionary *item = objc_getAssociatedObject(sender, @"item");
     NSString *section = objc_getAssociatedObject(sender, @"section");
     NSString *key = objc_getAssociatedObject(sender, @"key");
 
     sender.value = (int)sender.value;
     self.setPreference(section, key, @(sender.value));
+
+    void(^invokeAction)(int) = item[@"action"];
+    if (invokeAction) {
+        invokeAction((int)sender.value);
+    }
 }
 
 - (void)switchChanged:(UISwitch *)sender {
@@ -448,6 +465,10 @@
     void(^invokeAction)(void) = item[@"action"];
     if (invokeAction) {
         invokeAction();
+    }
+
+    if ([item[@"skipActionAlert"] boolValue]) {
+        return;
     }
 
     UIView *view = [self.tableView cellForRowAtIndexPath:indexPath];
