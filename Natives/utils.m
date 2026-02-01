@@ -45,11 +45,16 @@ typedef struct {
 static const AmethystAccentPalette kAmethystAccentPalettes[] = {
     {"teal", 0x1F9E93, 0x39D3BB, 0xD6F3EE, 0x163333},
     {"blue", 0x2F6BFF, 0x6EA1FF, 0xD9E6FF, 0x1A2A4A},
+    {"indigo", 0x5B5BF7, 0x8F8CFF, 0xE2E3FF, 0x26264D},
+    {"cyan", 0x12B3D6, 0x5FE1FF, 0xD9F6FF, 0x123040},
     {"purple", 0x7A4DFF, 0xB18CFF, 0xE6DBFF, 0x2A2045},
     {"pink", 0xE85CAB, 0xFF8FD1, 0xFDE0F1, 0x3C2033},
+    {"rose", 0xFF4D6D, 0xFF8FA3, 0xFFE0E7, 0x3B1C24},
     {"orange", 0xF28C28, 0xFFB068, 0xFFE9D1, 0x3B2A1A},
+    {"yellow", 0xF2C94C, 0xFFD166, 0xFFF4CC, 0x3B3212},
     {"red", 0xE23C3C, 0xFF7B7B, 0xFADADA, 0x3C1E1E},
     {"green", 0x2FA24A, 0x6EE087, 0xDDF6E3, 0x1D3A25},
+    {"lime", 0x7BCB1E, 0xB6FF5C, 0xE8FAD1, 0x233313},
     {"mono", 0x58606A, 0xC0CAD4, 0xE6EAEE, 0x2A323A}
 };
 
@@ -96,6 +101,9 @@ static const AmethystThemePalette kAmethystThemePalettes[] = {
     {"amethyst", 0xF4F7FB, 0x0F131A, 0xFFFFFF, 0x151B24, 0xE9EEF5, 0x1C2430, 0x1B1F24, 0xE6EDF3, 0x546374, 0x9AA8B6, 0xD5DEE8, 0x2A3340, 0xDCE9F7, 0x233040},
     {"midnight", 0xEFF3FB, 0x0B0F16, 0xF7FAFF, 0x121826, 0xE3E9F4, 0x1A2333, 0x101828, 0xE2E8F0, 0x475467, 0x98A2B3, 0xCDD5E1, 0x243042, 0xD7E3F7, 0x1C2536},
     {"warm", 0xFBF5EF, 0x1A120F, 0xFFFAF6, 0x221714, 0xF3E8DD, 0x2C1F1A, 0x2B1E1A, 0xF6EEE7, 0x6B5449, 0xC8B6AA, 0xE4D4C6, 0x3A2A23, 0xF1E1D2, 0x33241E},
+    {"ocean", 0xF2F8FB, 0x0E1A23, 0xFFFFFF, 0x142434, 0xE6F0F7, 0x1C3042, 0x14202B, 0xE6F3FF, 0x4A5C6B, 0x97A9B7, 0xD6E2EC, 0x2B3D4E, 0xD7E9F7, 0x243647},
+    {"forest", 0xF4F8F3, 0x101A14, 0xFFFFFF, 0x162019, 0xE6EFE4, 0x1E2A22, 0x1C241F, 0xE6F2EA, 0x556157, 0xA0B0A4, 0xD7E2D8, 0x2A372E, 0xDDE9DF, 0x243126},
+    {"sakura", 0xFFF5F7, 0x1E1216, 0xFFFFFF, 0x26171D, 0xFFE9EF, 0x2F1C24, 0x24181D, 0xF7E9EE, 0x6B4B55, 0xC9AAB4, 0xF0D9E1, 0x3A2630, 0xFCE0E8, 0x35202A},
     {"oled", 0xF5F5F5, 0x000000, 0xFFFFFF, 0x0B0B0B, 0xEDEDED, 0x141414, 0x1A1A1A, 0xF2F2F2, 0x5A5A5A, 0xB0B0B0, 0xD6D6D6, 0x1F1F1F, 0xE0E0E0, 0x161616}
 };
 
@@ -234,6 +242,33 @@ static CGFloat AmethystThemeBackgroundDimOpacity(void) {
         return 0.0;
     }
     return alpha;
+}
+
+static NSString *AmethystThemeBackgroundScaleKey(void) {
+    id value = getPrefObject(@"general.theme_background_scale");
+    if (![value isKindOfClass:NSString.class] || [value length] == 0) {
+        return @"fit";
+    }
+    return value;
+}
+
+static UIViewContentMode AmethystThemeBackgroundImageContentMode(void) {
+    NSString *key = AmethystThemeBackgroundScaleKey();
+    if ([key isEqualToString:@"fill"]) {
+        return UIViewContentModeScaleAspectFill;
+    }
+    if ([key isEqualToString:@"center"]) {
+        return UIViewContentModeCenter;
+    }
+    return UIViewContentModeScaleAspectFit;
+}
+
+static NSString *AmethystThemeBackgroundVideoGravity(void) {
+    NSString *key = AmethystThemeBackgroundScaleKey();
+    if ([key isEqualToString:@"fill"]) {
+        return AVLayerVideoGravityResizeAspectFill;
+    }
+    return AVLayerVideoGravityResizeAspect;
 }
 
 static BOOL AmethystThemeBackgroundVideoMuted(void) {
@@ -473,6 +508,12 @@ void AmethystApplyThemeAppearance(void) {
         navProxy.scrollEdgeAppearance = navAppearance;
         navProxy.tintColor = accent;
 
+        UIBarButtonItem *barButtonProxy = [UIBarButtonItem appearance];
+        [barButtonProxy setTitleTextAttributes:@{NSForegroundColorAttributeName: text}
+                                      forState:UIControlStateNormal];
+        [barButtonProxy setTitleTextAttributes:@{NSForegroundColorAttributeName: text}
+                                      forState:UIControlStateHighlighted];
+
         UIToolbarAppearance *toolbarAppearance = [[UIToolbarAppearance alloc] init];
         if (backgroundAlpha < 1.0) {
             [toolbarAppearance configureWithTransparentBackground];
@@ -492,6 +533,12 @@ void AmethystApplyThemeAppearance(void) {
         tableProxy.backgroundColor = AmethystThemeBackgroundColor();
         tableProxy.separatorColor = separator;
 
+        UITableViewHeaderFooterView *headerProxy = [UITableViewHeaderFooterView appearance];
+        headerProxy.textLabel.textColor = AmethystThemeTextSecondaryColor();
+        if ([headerProxy respondsToSelector:@selector(detailTextLabel)]) {
+            headerProxy.detailTextLabel.textColor = AmethystThemeTextSecondaryColor();
+        }
+
         UISwitch *switchProxy = [UISwitch appearance];
         switchProxy.onTintColor = accent;
 
@@ -505,6 +552,12 @@ void AmethystApplyThemeAppearance(void) {
         navProxy.barTintColor = surface;
         navProxy.titleTextAttributes = @{NSForegroundColorAttributeName: text};
         navProxy.tintColor = accent;
+
+        UIBarButtonItem *barButtonProxy = [UIBarButtonItem appearance];
+        [barButtonProxy setTitleTextAttributes:@{NSForegroundColorAttributeName: text}
+                                      forState:UIControlStateNormal];
+        [barButtonProxy setTitleTextAttributes:@{NSForegroundColorAttributeName: text}
+                                      forState:UIControlStateHighlighted];
 
         UIToolbar *toolbarProxy = [UIToolbar appearance];
         toolbarProxy.barTintColor = surface;
@@ -539,12 +592,12 @@ static AmethystBackgroundVideoView *AmethystThemeBackgroundVideoView(UIWindow *w
     if (!view) {
         view = [[AmethystBackgroundVideoView alloc] initWithFrame:window.bounds];
         view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        view.contentMode = UIViewContentModeScaleAspectFill;
+        view.contentMode = AmethystThemeBackgroundImageContentMode();
         view.userInteractionEnabled = NO;
         view.clipsToBounds = YES;
         view.hidden = YES;
         AVPlayerLayer *layer = (AVPlayerLayer *)view.layer;
-        layer.videoGravity = AVLayerVideoGravityResizeAspectFill;
+        layer.videoGravity = AmethystThemeBackgroundVideoGravity();
         [window insertSubview:view atIndex:0];
         objc_setAssociatedObject(window, &kAmethystThemeBackgroundVideoViewKey, view, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
@@ -556,7 +609,7 @@ static UIImageView *AmethystThemeBackgroundImageView(UIWindow *window) {
     if (!view) {
         view = [[UIImageView alloc] initWithFrame:window.bounds];
         view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        view.contentMode = UIViewContentModeScaleAspectFill;
+        view.contentMode = AmethystThemeBackgroundImageContentMode();
         view.userInteractionEnabled = NO;
         view.clipsToBounds = YES;
         UIView *videoView = objc_getAssociatedObject(window, &kAmethystThemeBackgroundVideoViewKey);
@@ -612,6 +665,9 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
     NSString *videoPath = AmethystThemeBackgroundVideoPathForWindow(window);
     AmethystBackgroundVideoView *videoView = AmethystThemeBackgroundVideoView(window);
     UIImageView *backgroundView = AmethystThemeBackgroundImageView(window);
+    videoView.contentMode = AmethystThemeBackgroundImageContentMode();
+    ((AVPlayerLayer *)videoView.layer).videoGravity = AmethystThemeBackgroundVideoGravity();
+    backgroundView.contentMode = AmethystThemeBackgroundImageContentMode();
     BOOL hasVideo = NO;
     if (videoPath && [NSFileManager.defaultManager fileExistsAtPath:videoPath]) {
         hasVideo = YES;
