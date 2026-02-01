@@ -162,6 +162,12 @@
 "preference.title.hidden_sidebar" = "Hide main menu sidebar by default";
 "preference.detail.hidden_sidebar" = "Allows you to hide the sidebar on the main menu by default and when rotating.";
 
+"preference.title.theme_palette" = "Theme palette";
+"preference.detail.theme_palette" = "Change the overall UI colors.";
+"preference.pick.theme_palette.amethyst" = "Amethyst";
+"preference.pick.theme_palette.midnight" = "Midnight";
+"preference.pick.theme_palette.warm" = "Warm";
+"preference.pick.theme_palette.oled" = "OLED";
 "preference.title.theme_accent" = "Theme color";
 "preference.detail.theme_accent" = "Change the accent color used across the launcher UI.";
 "preference.pick.theme_accent.teal" = "Teal";
@@ -248,6 +254,10 @@
 "preference.detail.recording_hide" = "Hides controls from screenshot and screen recording while they remain visible on the screen.";
 "preference.title.gesture_mouse" = "Mouse gestures";
 "preference.detail.gesture_mouse" = "Enables gestures, such as tap to place block, hold to break block, scrolling with 2 fingers";
+"preference.title.gesture_mouse_tap_hold" = "Tap and hold gestures";
+"preference.detail.gesture_mouse_tap_hold" = "Enable tap to place and hold to break blocks.";
+"preference.title.gesture_mouse_scroll" = "Two-finger scroll";
+"preference.detail.gesture_mouse_scroll" = "Enable two-finger scrolling gestures.";
 "preference.title.gesture_hotbar" = "Hotbar gestures";
 "preference.detail.gesture_hotbar" = "Enables gestures, such as touch the hotbar slot, swap items between hand, throw items";
 "preference.title.disable_haptics" = "Disable on-screen haptics";
