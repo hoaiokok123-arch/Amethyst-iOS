@@ -93,6 +93,10 @@ UIColor* AmethystThemeTextPrimaryColor(void);
 UIColor* AmethystThemeTextSecondaryColor(void);
 UIColor* AmethystThemeSeparatorColor(void);
 UIColor* AmethystThemeSelectionColor(void);
+UIColor* AmethystThemeButtonBackgroundColor(void);
+UIColor* AmethystThemeButtonSelectionColor(void);
+UIColor* AmethystThemeButtonBorderColor(void);
+BOOL AmethystThemeButtonOutlineEnabled(void);
 void AmethystApplyThemeAppearance(void);
 void AmethystApplyThemeToWindow(UIWindow *window);
 
