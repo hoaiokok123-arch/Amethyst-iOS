@@ -354,11 +354,14 @@
 "preference.detail.theme_button_outline" = "Hiện viền khi nút trong suốt.";
 "preference.title.theme_background_image" = "Ảnh nền giao diện";
 "preference.detail.theme_background_image" = "Chọn ảnh để hiển thị phía sau giao diện.";
+"preference.title.theme_background_image_landscape" = "Ảnh nền giao diện (ngang)";
+"preference.detail.theme_background_image_landscape" = "Chọn ảnh nền khi màn hình ngang.";
 "preference.title.theme_background_video" = "Video nền (dọc)";
 "preference.detail.theme_background_video" = "Chọn video nền khi màn hình dọc.";
 "preference.title.theme_background_video_landscape" = "Video nền (ngang)";
 "preference.detail.theme_background_video_landscape" = "Chọn video nền khi màn hình ngang.";
 "preference.title.theme_background_clear" = "Xóa ảnh nền";
+"preference.title.theme_background_clear_landscape" = "Xóa ảnh nền (ngang)";
 "preference.title.theme_background_clear_video" = "Xóa video nền (dọc)";
 "preference.title.theme_background_clear_video_landscape" = "Xóa video nền (ngang)";
 "preference.title.theme_background_opacity" = "Độ trong suốt nền (%)";
