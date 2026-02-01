@@ -116,6 +116,36 @@ static const AmethystThemePalette *AmethystCurrentThemePalette(void) {
     return AmethystThemePaletteForKey(paletteKey);
 }
 
+static NSString *AmethystThemeTextColorKey(void) {
+    id value = getPrefObject(@"general.theme_text_color");
+    if (![value isKindOfClass:NSString.class] || [value length] == 0) {
+        return @"default";
+    }
+    return value;
+}
+
+static CGFloat AmethystThemeTextOpacity(void) {
+    CGFloat alpha = 1.0;
+    id value = getPrefObject(@"general.theme_text_opacity");
+    if ([value respondsToSelector:@selector(doubleValue)]) {
+        alpha = [value doubleValue] / 100.0;
+    }
+    return clamp(alpha, 0.0, 1.0);
+}
+
+static CGFloat AmethystThemeButtonOpacity(void) {
+    CGFloat alpha = 1.0;
+    id value = getPrefObject(@"general.theme_button_opacity");
+    if ([value respondsToSelector:@selector(doubleValue)]) {
+        alpha = [value doubleValue] / 100.0;
+    }
+    return clamp(alpha, 0.0, 1.0);
+}
+
+BOOL AmethystThemeButtonOutlineEnabled(void) {
+    return getPrefBool(@"general.theme_button_outline");
+}
+
 static NSString *AmethystThemeBackgroundImagePath(void) {
     id value = getPrefObject(@"general.theme_background_image");
     if (![value isKindOfClass:NSString.class] || [value length] == 0) {
@@ -124,12 +154,28 @@ static NSString *AmethystThemeBackgroundImagePath(void) {
     return value;
 }
 
-static NSString *AmethystThemeBackgroundVideoPath(void) {
-    id value = getPrefObject(@"general.theme_background_video");
-    if (![value isKindOfClass:NSString.class] || [value length] == 0) {
+static BOOL AmethystThemeHasBackgroundVideo(void) {
+    id portrait = getPrefObject(@"general.theme_background_video");
+    if ([portrait isKindOfClass:NSString.class] && [portrait length] > 0) {
+        return YES;
+    }
+    id landscape = getPrefObject(@"general.theme_background_video_landscape");
+    return [landscape isKindOfClass:NSString.class] && [landscape length] > 0;
+}
+
+static NSString *AmethystThemeBackgroundVideoPathForWindow(UIWindow *window) {
+    NSString *portrait = getPrefObject(@"general.theme_background_video");
+    NSString *landscape = getPrefObject(@"general.theme_background_video_landscape");
+    BOOL hasPortrait = [portrait isKindOfClass:NSString.class] && portrait.length > 0;
+    BOOL hasLandscape = [landscape isKindOfClass:NSString.class] && landscape.length > 0;
+    if (!hasPortrait && !hasLandscape) {
         return nil;
     }
-    return value;
+    BOOL isLandscape = window.bounds.size.width > window.bounds.size.height;
+    if (isLandscape) {
+        return hasLandscape ? landscape : (hasPortrait ? portrait : nil);
+    }
+    return hasPortrait ? portrait : (hasLandscape ? landscape : nil);
 }
 
 static CGFloat AmethystThemeBackgroundOpacity(void) {
@@ -139,7 +185,7 @@ static CGFloat AmethystThemeBackgroundOpacity(void) {
         alpha = [value doubleValue] / 100.0;
     }
     alpha = clamp(alpha, 0.0, 1.0);
-    if (!AmethystThemeBackgroundImagePath() && !AmethystThemeBackgroundVideoPath()) {
+    if (!AmethystThemeBackgroundImagePath() && !AmethystThemeHasBackgroundVideo()) {
         return 1.0;
     }
     return alpha;
@@ -267,13 +313,39 @@ UIColor* AmethystThemeAccentSoftColor(void) {
 }
 
 UIColor* AmethystThemeTextPrimaryColor(void) {
-    const AmethystThemePalette *palette = AmethystCurrentThemePalette();
-    return AmethystDynamicColor(palette->lightTextPrimary, palette->darkTextPrimary, 1.0);
+    NSString *overrideKey = AmethystThemeTextColorKey();
+    UIColor *base = nil;
+    if ([overrideKey isEqualToString:@"accent"]) {
+        base = AmethystThemeAccentColor();
+    } else if ([overrideKey isEqualToString:@"light"]) {
+        base = AmethystDynamicColor(0xF8FAFC, 0xF8FAFC, 1.0);
+    } else if ([overrideKey isEqualToString:@"dark"]) {
+        base = AmethystDynamicColor(0x111827, 0x111827, 1.0);
+    }
+    if (!base) {
+        const AmethystThemePalette *palette = AmethystCurrentThemePalette();
+        base = AmethystDynamicColor(palette->lightTextPrimary, palette->darkTextPrimary, 1.0);
+    }
+    return [base colorWithAlphaComponent:AmethystThemeTextOpacity()];
 }
 
 UIColor* AmethystThemeTextSecondaryColor(void) {
+    NSString *overrideKey = AmethystThemeTextColorKey();
+    UIColor *base = nil;
+    if ([overrideKey isEqualToString:@"accent"]) {
+        base = AmethystThemeAccentColor();
+    } else if ([overrideKey isEqualToString:@"light"]) {
+        base = AmethystDynamicColor(0xF8FAFC, 0xF8FAFC, 1.0);
+    } else if ([overrideKey isEqualToString:@"dark"]) {
+        base = AmethystDynamicColor(0x111827, 0x111827, 1.0);
+    }
+    CGFloat alpha = AmethystThemeTextOpacity();
+    if (base) {
+        return [base colorWithAlphaComponent:alpha * 0.7];
+    }
     const AmethystThemePalette *palette = AmethystCurrentThemePalette();
-    return AmethystDynamicColor(palette->lightTextSecondary, palette->darkTextSecondary, 1.0);
+    base = AmethystDynamicColor(palette->lightTextSecondary, palette->darkTextSecondary, 1.0);
+    return [base colorWithAlphaComponent:alpha];
 }
 
 UIColor* AmethystThemeSeparatorColor(void) {
@@ -284,6 +356,22 @@ UIColor* AmethystThemeSeparatorColor(void) {
 UIColor* AmethystThemeSelectionColor(void) {
     const AmethystThemePalette *palette = AmethystCurrentThemePalette();
     return AmethystDynamicColor(palette->lightSelection, palette->darkSelection, AmethystThemeBackgroundOpacity());
+}
+
+UIColor* AmethystThemeButtonBackgroundColor(void) {
+    const AmethystThemePalette *palette = AmethystCurrentThemePalette();
+    CGFloat alpha = AmethystThemeButtonOpacity();
+    return AmethystDynamicColor(palette->lightSurface, palette->darkSurface, alpha);
+}
+
+UIColor* AmethystThemeButtonSelectionColor(void) {
+    const AmethystThemePalette *palette = AmethystCurrentThemePalette();
+    CGFloat alpha = AmethystThemeButtonOpacity();
+    return AmethystDynamicColor(palette->lightSelection, palette->darkSelection, alpha);
+}
+
+UIColor* AmethystThemeButtonBorderColor(void) {
+    return [AmethystThemeAccentColor() colorWithAlphaComponent:0.6];
 }
 
 static UIUserInterfaceStyle AmethystPreferredInterfaceStyle(void) {
@@ -422,7 +510,7 @@ void AmethystApplyThemeToWindow(UIWindow *window) {
     if (@available(iOS 13.0, *)) {
         window.overrideUserInterfaceStyle = AmethystPreferredInterfaceStyle();
     }
-    NSString *videoPath = AmethystThemeBackgroundVideoPath();
+    NSString *videoPath = AmethystThemeBackgroundVideoPathForWindow(window);
     AmethystBackgroundVideoView *videoView = AmethystThemeBackgroundVideoView(window);
     UIImageView *backgroundView = AmethystThemeBackgroundImageView(window);
     BOOL hasVideo = NO;
