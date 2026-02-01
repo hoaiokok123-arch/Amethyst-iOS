@@ -47,6 +47,8 @@
 @property(nonatomic) BOOL showMenuIcons;
 @property(nonatomic) BOOL showAccountButton;
 @property(nonatomic) BOOL showMenuNews;
+@property(nonatomic) BOOL showMenuProfiles;
+@property(nonatomic) BOOL showMenuSettings;
 @property(nonatomic) BOOL showMenuCustomControls;
 @property(nonatomic) BOOL showMenuModInstaller;
 @property(nonatomic) BOOL showMenuSendLogs;
@@ -125,8 +127,12 @@
     if (self.showMenuNews) {
         [options addObject:[LauncherMenuCustomItem vcClass:LauncherNewsViewController.class]];
     }
-    [options addObject:[LauncherMenuCustomItem vcClass:LauncherProfilesViewController.class]];
-    [options addObject:[LauncherMenuCustomItem vcClass:LauncherPreferencesViewController.class]];
+    if (self.showMenuProfiles) {
+        [options addObject:[LauncherMenuCustomItem vcClass:LauncherProfilesViewController.class]];
+    }
+    if (self.showMenuSettings) {
+        [options addObject:[LauncherMenuCustomItem vcClass:LauncherPreferencesViewController.class]];
+    }
 
     if (realUIIdiom != UIUserInterfaceIdiomTV && self.showMenuCustomControls) {
         [options addObject:(id)[LauncherMenuCustomItem
@@ -171,6 +177,10 @@
         }]];
     }
 
+    if (options.count == 0) {
+        [options addObject:[LauncherMenuCustomItem vcClass:LauncherPreferencesViewController.class]];
+    }
+
     NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
     dateFormatter.dateFormat = @"MM-dd";
     NSString* date = [dateFormatter stringFromDate:NSDate.date];
@@ -194,6 +204,8 @@
     self.showMenuIcons = getPrefBool(@"general.menu_show_icons");
     self.showAccountButton = getPrefBool(@"general.menu_show_account");
     self.showMenuNews = getPrefBool(@"general.menu_show_news");
+    self.showMenuProfiles = getPrefBool(@"general.menu_show_profiles");
+    self.showMenuSettings = getPrefBool(@"general.menu_show_settings");
     self.showMenuCustomControls = getPrefBool(@"general.menu_show_custom_controls");
     self.showMenuModInstaller = getPrefBool(@"general.menu_show_mod_installer");
     self.showMenuSendLogs = getPrefBool(@"general.menu_show_send_logs");
@@ -285,17 +297,12 @@
     UIView *selectedBackground = [UIView new];
     selectedBackground.backgroundColor = AmethystThemeButtonSelectionColor();
     cell.selectedBackgroundView = selectedBackground;
-    if (AmethystThemeButtonOutlineEnabled()) {
-        cell.layer.borderWidth = 1.0 / UIScreen.mainScreen.scale;
-        cell.layer.borderColor = AmethystThemeButtonBorderColor().CGColor;
-        cell.layer.cornerRadius = 12.0;
-        cell.layer.masksToBounds = YES;
-    } else {
-        cell.layer.borderWidth = 0.0;
-        cell.layer.borderColor = nil;
-        cell.layer.cornerRadius = 0.0;
-        cell.layer.masksToBounds = NO;
-    }
+    BOOL outlineEnabled = AmethystThemeButtonOutlineEnabled();
+    CGFloat cornerRadius = AmethystThemeButtonCornerRadius();
+    cell.layer.cornerRadius = cornerRadius;
+    cell.layer.borderWidth = outlineEnabled ? AmethystThemeButtonBorderWidth() : 0.0;
+    cell.layer.borderColor = outlineEnabled ? AmethystThemeButtonBorderColor().CGColor : nil;
+    cell.layer.masksToBounds = (cornerRadius > 0.0) || outlineEnabled;
     return cell;
 }
 
