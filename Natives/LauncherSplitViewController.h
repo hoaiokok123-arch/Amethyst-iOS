@@ -2,4 +2,6 @@
 
 @interface LauncherSplitViewController : UISplitViewController
 
+- (void)applySidebarPreferences;
+
 @end
