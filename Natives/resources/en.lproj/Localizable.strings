@@ -183,6 +183,11 @@
 "preference.pick.theme_mode.system" = "System";
 "preference.pick.theme_mode.light" = "Light";
 "preference.pick.theme_mode.dark" = "Dark";
+"preference.title.theme_background_image" = "Background image";
+"preference.detail.theme_background_image" = "Choose an image to display behind the launcher UI.";
+"preference.title.theme_background_clear" = "Clear background image";
+"preference.title.theme_background_opacity" = "Background opacity (%)";
+"preference.detail.theme_background_opacity" = "Adjust transparency to reveal the background image.";
 "preference.title.menu_compact" = "Compact menu";
 "preference.detail.menu_compact" = "Reduce spacing in the sidebar menu.";
 "preference.title.menu_show_icons" = "Show menu icons";
@@ -254,10 +259,10 @@
 "preference.detail.recording_hide" = "Hides controls from screenshot and screen recording while they remain visible on the screen.";
 "preference.title.gesture_mouse" = "Mouse gestures";
 "preference.detail.gesture_mouse" = "Enables gestures, such as tap to place block, hold to break block, scrolling with 2 fingers";
-"preference.title.gesture_mouse_tap_hold" = "Tap and hold gestures";
-"preference.detail.gesture_mouse_tap_hold" = "Enable tap to place and hold to break blocks.";
+"preference.title.gesture_mouse_tap_hold" = "Tap/hold to place & break";
+"preference.detail.gesture_mouse_tap_hold" = "Tap to place blocks, hold to break them.";
 "preference.title.gesture_mouse_scroll" = "Two-finger scroll";
-"preference.detail.gesture_mouse_scroll" = "Enable two-finger scrolling gestures.";
+"preference.detail.gesture_mouse_scroll" = "Scroll using two fingers.";
 "preference.title.gesture_hotbar" = "Hotbar gestures";
 "preference.detail.gesture_hotbar" = "Enables gestures, such as touch the hotbar slot, swap items between hand, throw items";
 "preference.title.disable_haptics" = "Disable on-screen haptics";
