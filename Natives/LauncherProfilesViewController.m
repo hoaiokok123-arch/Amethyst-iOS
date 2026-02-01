@@ -223,17 +223,12 @@ typedef NS_ENUM(NSUInteger, LauncherProfilesTableSection) {
     UIView *selectedBackground = [UIView new];
     selectedBackground.backgroundColor = AmethystThemeButtonSelectionColor();
     cell.selectedBackgroundView = selectedBackground;
-    if (AmethystThemeButtonOutlineEnabled()) {
-        cell.layer.borderWidth = 1.0 / UIScreen.mainScreen.scale;
-        cell.layer.borderColor = AmethystThemeButtonBorderColor().CGColor;
-        cell.layer.cornerRadius = 12.0;
-        cell.layer.masksToBounds = YES;
-    } else {
-        cell.layer.borderWidth = 0.0;
-        cell.layer.borderColor = nil;
-        cell.layer.cornerRadius = 0.0;
-        cell.layer.masksToBounds = NO;
-    }
+    BOOL outlineEnabled = AmethystThemeButtonOutlineEnabled();
+    CGFloat cornerRadius = AmethystThemeButtonCornerRadius();
+    cell.layer.cornerRadius = cornerRadius;
+    cell.layer.borderWidth = outlineEnabled ? AmethystThemeButtonBorderWidth() : 0.0;
+    cell.layer.borderColor = outlineEnabled ? AmethystThemeButtonBorderColor().CGColor : nil;
+    cell.layer.masksToBounds = (cornerRadius > 0.0) || outlineEnabled;
     return cell;
 }
 
