@@ -87,6 +87,11 @@ typedef NS_ENUM(NSUInteger, LauncherProfilesTableSection) {
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
 
+    self.view.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.backgroundColor = AmethystThemeBackgroundColor();
+    self.tableView.separatorColor = AmethystThemeSeparatorColor();
+    self.tableView.tintColor = AmethystThemeAccentColor();
+
     // Put navigation buttons back in place
     self.navigationItem.rightBarButtonItems = @[[sidebarViewController drawAccountButton], self.createButtonItem];
 
@@ -217,9 +222,18 @@ typedef NS_ENUM(NSUInteger, LauncherProfilesTableSection) {
     cell.textLabel.enabled = cell.detailTextLabel.enabled = cell.userInteractionEnabled;
     cell.textLabel.textColor = cell.userInteractionEnabled ? AmethystThemeTextPrimaryColor() : AmethystThemeTextSecondaryColor();
     cell.detailTextLabel.textColor = AmethystThemeTextSecondaryColor();
-    cell.backgroundColor = AmethystThemeButtonBackgroundColor();
-    cell.contentView.backgroundColor = AmethystThemeButtonBackgroundColor();
+    UIColor *surfaceColor = AmethystThemeButtonBackgroundColor();
+    if (@available(iOS 14.0, *)) {
+        UIBackgroundConfiguration *background = [UIBackgroundConfiguration clearConfiguration];
+        background.backgroundColor = surfaceColor;
+        cell.backgroundConfiguration = background;
+    } else {
+        cell.backgroundColor = surfaceColor;
+        cell.contentView.backgroundColor = surfaceColor;
+    }
     cell.imageView.tintColor = AmethystThemeAccentColor();
+    cell.textLabel.backgroundColor = UIColor.clearColor;
+    cell.detailTextLabel.backgroundColor = UIColor.clearColor;
     UIView *selectedBackground = [UIView new];
     selectedBackground.backgroundColor = AmethystThemeButtonSelectionColor();
     cell.selectedBackgroundView = selectedBackground;
