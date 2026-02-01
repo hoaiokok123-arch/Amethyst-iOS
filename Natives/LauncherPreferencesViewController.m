@@ -17,6 +17,7 @@
 
 @interface LauncherPreferencesViewController()<UIDocumentPickerDelegate>
 @property(nonatomic) NSArray<NSString*> *rendererKeys, *rendererList;
+@property(nonatomic) BOOL pickingThemeVideo;
 @end
 
 @implementation LauncherPreferencesViewController
@@ -310,6 +311,16 @@
                   [weakSelf actionPickThemeBackgroundImage];
               }
             },
+            @{@"key": @"theme_background_video",
+              @"section": @"general",
+              @"hasDetail": @YES,
+              @"icon": @"video",
+              @"type": self.typeButton,
+              @"skipActionAlert": @YES,
+              @"action": ^void(){
+                  [weakSelf actionPickThemeBackgroundVideo];
+              }
+            },
             @{@"key": @"theme_background_clear",
               @"icon": @"trash",
               @"type": self.typeButton,
@@ -323,6 +334,19 @@
                   [weakSelf actionClearThemeBackgroundImage];
               }
             },
+            @{@"key": @"theme_background_clear_video",
+              @"icon": @"trash",
+              @"type": self.typeButton,
+              @"destructive": @YES,
+              @"skipActionAlert": @YES,
+              @"enableCondition": ^BOOL(){
+                  NSString *path = getPrefObject(@"general.theme_background_video");
+                  return [path isKindOfClass:NSString.class] && path.length > 0;
+              },
+              @"action": ^void(){
+                  [weakSelf actionClearThemeBackgroundVideo];
+              }
+            },
             @{@"key": @"theme_background_opacity",
               @"section": @"general",
               @"hasDetail": @YES,
@@ -330,7 +354,11 @@
               @"type": self.typeSlider,
               @"enableCondition": ^BOOL(){
                   NSString *path = getPrefObject(@"general.theme_background_image");
-                  return [path isKindOfClass:NSString.class] && path.length > 0;
+                  if ([path isKindOfClass:NSString.class] && path.length > 0) {
+                      return YES;
+                  }
+                  NSString *videoPath = getPrefObject(@"general.theme_background_video");
+                  return [videoPath isKindOfClass:NSString.class] && videoPath.length > 0;
               },
               @"min": @(0),
               @"max": @(100),
@@ -635,6 +663,7 @@
 }
 
 - (void)actionPickThemeBackgroundImage {
+    self.pickingThemeVideo = NO;
     UTType *imageType = [UTType typeWithIdentifier:@"public.image"];
     if (!imageType) {
         showDialog(localize(@"Error", nil), @"Image picker is unavailable.");
@@ -642,6 +671,29 @@
     }
     UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc]
         initForOpeningContentTypes:@[imageType] asCopy:YES];
+    documentPicker.delegate = self;
+    documentPicker.modalPresentationStyle = UIModalPresentationFormSheet;
+    [self presentViewController:documentPicker animated:YES completion:nil];
+}
+
+- (void)actionPickThemeBackgroundVideo {
+    self.pickingThemeVideo = YES;
+    NSMutableArray<UTType *> *types = [NSMutableArray array];
+    UTType *movieType = [UTType typeWithIdentifier:@"public.movie"];
+    if (movieType) {
+        [types addObject:movieType];
+    }
+    UTType *videoType = [UTType typeWithIdentifier:@"public.video"];
+    if (videoType && ![types containsObject:videoType]) {
+        [types addObject:videoType];
+    }
+    if (types.count == 0) {
+        self.pickingThemeVideo = NO;
+        showDialog(localize(@"Error", nil), @"Video picker is unavailable.");
+        return;
+    }
+    UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc]
+        initForOpeningContentTypes:types asCopy:YES];
     documentPicker.delegate = self;
     documentPicker.modalPresentationStyle = UIModalPresentationFormSheet;
     [self presentViewController:documentPicker animated:YES completion:nil];
@@ -656,8 +708,23 @@
     [self applyThemeChangesAndReload];
 }
 
+- (void)actionClearThemeBackgroundVideo {
+    NSString *currentPath = getPrefObject(@"general.theme_background_video");
+    if ([currentPath isKindOfClass:NSString.class] && currentPath.length > 0) {
+        [NSFileManager.defaultManager removeItemAtPath:currentPath error:nil];
+    }
+    setPrefObject(@"general.theme_background_video", @"");
+    [self applyThemeChangesAndReload];
+}
+
+- (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller {
+    self.pickingThemeVideo = NO;
+}
+
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentAtURL:(NSURL *)url {
     [url startAccessingSecurityScopedResource];
+    BOOL pickingVideo = self.pickingThemeVideo;
+    self.pickingThemeVideo = NO;
 
     NSString *themeDir = [self themeBackgroundDirectory];
     [NSFileManager.defaultManager createDirectoryAtPath:themeDir
@@ -665,10 +732,12 @@
                                              attributes:nil
                                                   error:nil];
 
-    NSString *extension = url.pathExtension.length > 0 ? url.pathExtension : @"png";
-    NSString *destPath = [themeDir stringByAppendingPathComponent:[NSString stringWithFormat:@"background.%@", extension]];
+    NSString *extension = url.pathExtension.length > 0 ? url.pathExtension : (pickingVideo ? @"mp4" : @"png");
+    NSString *baseName = pickingVideo ? @"background-video" : @"background";
+    NSString *destPath = [themeDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.%@", baseName, extension]];
 
-    NSString *previousPath = getPrefObject(@"general.theme_background_image");
+    NSString *prefKey = pickingVideo ? @"general.theme_background_video" : @"general.theme_background_image";
+    NSString *previousPath = getPrefObject(prefKey);
     if ([previousPath isKindOfClass:NSString.class] && previousPath.length > 0 && ![previousPath isEqualToString:destPath]) {
         [NSFileManager.defaultManager removeItemAtPath:previousPath error:nil];
     }
@@ -683,7 +752,7 @@
 
     [url stopAccessingSecurityScopedResource];
 
-    setPrefObject(@"general.theme_background_image", destPath);
+    setPrefObject(prefKey, destPath);
     [self applyThemeChangesAndReload];
 }
 
