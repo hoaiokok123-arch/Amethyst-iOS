@@ -3,6 +3,7 @@
 #import "LauncherNewsViewController.h"
 #import "LauncherNavigationController.h"
 #import "LauncherPreferences.h"
+#import "UIKit+hook.h"
 #import "utils.h"
 
 extern NSMutableDictionary *prefDict;
